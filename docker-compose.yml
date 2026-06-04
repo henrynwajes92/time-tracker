@@ -1,0 +1,15 @@
+services:
+  postgres:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: timetracker
+      POSTGRES_PASSWORD: timetracker
+      POSTGRES_DB: timetracker
+    ports:
+      - "5433:5432"  # use 5433 if port 5432 is already taken (e.g. devbox)
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+
+volumes:
+  postgres_data:

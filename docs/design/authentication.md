@@ -30,23 +30,22 @@ Authentication and authorisation design for the Time Tracker application using N
 ### Authentication Strategy
 
 **Provider:** NextAuth.js Credentials provider  
-**Session type:** Database sessions (stored in the `Session` table via Prisma adapter)  
-**Session expiry:** 30 days of inactivity  
+**Session type:** JWT (stateless — no database session table required)  
+**Token expiry:** 30 days  
 **Password hashing:** bcrypt with cost factor 12
 
-Database sessions are preferred over JWTs because:
-- Sessions can be revoked immediately (e.g. when a member is removed from a team)
-- No risk of stale role/team data being encoded in a long-lived token
+JWTs are used because the Go API needs to validate tokens independently without a shared session store. The JWT is signed with `NEXTAUTH_SECRET` (shared between Next.js and Go API) and contains `id`, `email`, `role`, and `teamId`. The Go API validates the signature on every protected request using the same secret.
 
 ### Session Flow
 
 ```
-1. User submits email + password to POST /api/auth/callback/credentials (NextAuth)
-2. Credentials provider fetches User from DB by email
-3. bcrypt.compare(inputPassword, user.passwordHash)
-4. On success: NextAuth creates a Session row and sets a session cookie (httpOnly, Secure, SameSite=Lax)
-5. On subsequent requests: NextAuth reads the session cookie, looks up the Session row, and attaches the User to the request context
-6. On logout: Session row is deleted; cookie is cleared
+1. User submits email + password to POST /api/auth/callback/credentials (NextAuth, on the Next.js frontend)
+2. Credentials provider calls Go API POST /api/auth/verify to validate credentials
+3. Go API fetches User from DB by email, runs bcrypt.compare(inputPassword, user.passwordHash)
+4. On success: NextAuth signs a JWT containing { id, email, role, teamId } using NEXTAUTH_SECRET and sets an httpOnly session cookie
+5. On client API calls: Next.js reads the JWT from the session cookie and forwards it as Authorization: Bearer <token> to the Go API
+6. Go API validates the JWT signature using NEXTAUTH_SECRET on every protected request
+7. On logout: NextAuth clears the session cookie (no server-side revocation needed)
 ```
 
 ### Protected Routes — middleware.ts
@@ -66,16 +65,17 @@ Admin-only pages (e.g. `/settings/team`) additionally check `session.user.role =
 
 ### API Route Authorisation Pattern
 
-Every API route handler follows this pattern:
+Every protected Go API handler uses a middleware chain:
 
 ```
-1. const session = await auth()           // get session
-2. if (!session) return 401              // not logged in
-3. if (needsAdmin && session.user.role !== 'ADMIN') return 403
-4. // enforce team scoping: only return/modify resources belonging to session.user.teamId
+1. Extract Bearer token from Authorization header → 401 if missing
+2. Validate JWT signature using NEXTAUTH_SECRET → 401 if invalid or expired
+3. Parse claims: { id, email, role, teamId }
+4. if needsAdmin && claims.role != "ADMIN" → return 403
+5. Enforce team scoping: only return/modify resources where teamId = claims.teamId
 ```
 
-Role is never trusted from the client — always read from the database session.
+Role is never trusted from the client — always read from the signed JWT claims.
 
 ---
 
@@ -145,26 +145,37 @@ User                           Server
 ### NextAuth Configuration Summary
 
 ```ts
-// src/lib/auth.ts
+// frontend/src/lib/auth.ts
 export const { handlers, auth, signIn, signOut } = NextAuth({
-  adapter: PrismaAdapter(db),
-  session: { strategy: 'database', maxAge: 30 * 24 * 60 * 60 }, // 30 days
+  session: { strategy: 'jwt', maxAge: 30 * 24 * 60 * 60 }, // 30 days, no DB needed
   providers: [
     Credentials({
       async authorize(credentials) {
-        const user = await db.user.findUnique({ where: { email: credentials.email } })
-        if (!user) return null
-        const valid = await bcrypt.compare(credentials.password, user.passwordHash)
-        if (!valid) return null
+        // Delegate credential validation to the Go API
+        const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/auth/verify`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ email: credentials.email, password: credentials.password }),
+        })
+        if (!res.ok) return null
+        const user = await res.json()
         return { id: user.id, name: user.name, email: user.email, role: user.role, teamId: user.teamId }
       }
     })
   ],
   callbacks: {
-    async session({ session, user }) {
-      session.user.id = user.id
-      session.user.role = user.role
-      session.user.teamId = user.teamId
+    async jwt({ token, user }) {
+      if (user) {
+        token.id = user.id
+        token.role = user.role
+        token.teamId = user.teamId
+      }
+      return token
+    },
+    async session({ session, token }) {
+      session.user.id = token.id as string
+      session.user.role = token.role as string
+      session.user.teamId = token.teamId as string
       return session
     }
   },

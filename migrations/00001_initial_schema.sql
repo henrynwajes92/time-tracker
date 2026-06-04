@@ -1,48 +1,3 @@
-# Database Schema — Design Document
-
-**Status:** Draft  
-**Author:** Henry Nwaokonko  
-**Date:** 2026-05-29  
-
----
-
-## Overview
-
-PostgreSQL database schema for the Time Tracker application, managed with Goose SQL migrations. Covers all entities, relationships, indexes, and business rules. Because the auth strategy is JWT (stateless), no NextAuth session or account tables are required.
-
-## Goals
-
-- Model all entities identified in the requirements document
-- Define indexes that support the most common query patterns
-- Keep the schema simple and easy to evolve for MVP
-
-## Non-Goals
-
-- Soft-delete pattern for all entities (only projects and tasks use `archivedAt`)
-- Multi-organisation support
-- Audit log table (out of scope for MVP)
-
----
-
-## Design
-
-### Entity Relationship Diagram
-
-```
-Team ──────< User
- │               │
- └──────< Project │
-              │    │
-              └──< Task ──< TimeEntry >── User
-                                │
-Team ──────< InviteToken
-```
-
-### SQL Schema (Goose Migrations)
-
-Each file lives in `migrations/` and follows Goose naming: `00001_create_teams.sql`, `00002_create_users.sql`, etc.
-
-```sql
 -- +goose Up
 
 CREATE TYPE user_role AS ENUM ('ADMIN', 'MEMBER');
@@ -106,7 +61,7 @@ CREATE TABLE invite_tokens (
   created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 CREATE INDEX idx_invite_tokens_token ON invite_tokens(token);
-CREATE INDEX idx_invite_tokens_team ON invite_tokens(team_id);
+CREATE INDEX idx_invite_tokens_team  ON invite_tokens(team_id);
 
 CREATE TABLE password_reset_tokens (
   id         UUID        PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -119,6 +74,7 @@ CREATE TABLE password_reset_tokens (
 CREATE INDEX idx_password_reset_tokens_token ON password_reset_tokens(token);
 
 -- +goose Down
+
 DROP TABLE IF EXISTS password_reset_tokens;
 DROP TABLE IF EXISTS invite_tokens;
 DROP TABLE IF EXISTS time_entries;
@@ -127,34 +83,3 @@ DROP TABLE IF EXISTS projects;
 DROP TABLE IF EXISTS users;
 DROP TYPE  IF EXISTS user_role;
 DROP TABLE IF EXISTS teams;
-```
-
-### Index Strategy
-
-| Index | Query it supports |
-|---|---|
-| `User(teamId)` | List all users in a team |
-| `Project(teamId, archivedAt)` | List active projects for a team |
-| `Task(projectId, archivedAt)` | List active tasks for a project |
-| `TimeEntry(userId, startedAt)` | Dashboard totals, user time history, reports |
-| `TimeEntry(taskId)` | Aggregate time per task |
-| `InviteToken(token)` | Invite link lookup on registration |
-
-### Business Rules Enforced at Application Layer
-
-- `TimeEntry.endedAt` must be after `TimeEntry.startedAt` — validated in API route before write.
-- A user may have at most one `TimeEntry` where `endedAt IS NULL` (active timer) — checked before starting a new timer.
-- `TimeEntry.durationSeconds` is computed as `endedAt - startedAt` in seconds when the timer is stopped — never sent from the client.
-- Invite tokens expire after 7 days (`expiresAt = now + 7 days`) and can only be used once (`usedAt` is set on use).
-
-### Migration Strategy
-
-- Migrations are managed with Goose (`goose postgres $DATABASE_URL up` locally and in CI/CD).
-- Each schema change adds a new numbered SQL file in `migrations/` committed to the repo.
-- Run `goose status` to see which migrations have been applied.
-- Breaking migrations (column renames, drops) require a two-phase deploy: add new → migrate data → remove old.
-
-## Open Questions
-
-- Should `duration_seconds` be stored, or always computed from `started_at`/`ended_at`? (Stored — needed for manual entries where start/end times may not be set precisely.)
-- `password_reset_tokens` table is included in the initial migration — confirmed required before auth implementation.

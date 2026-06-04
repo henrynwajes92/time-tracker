@@ -8,7 +8,7 @@
 
 ## Overview
 
-REST API design for the Time Tracker application. All endpoints are implemented as Next.js API routes under `/api/**`. This document defines every endpoint, its request/response shape, and authentication requirements.
+REST API design for the Time Tracker application. All endpoints are implemented in the Go REST API backend. This document defines every endpoint, its request/response shape, and authentication requirements.
 
 ## Goals
 
@@ -29,7 +29,7 @@ REST API design for the Time Tracker application. All endpoints are implemented 
 ### Conventions
 
 - All request and response bodies are JSON (`Content-Type: application/json`)
-- Authentication is via session cookie (managed by NextAuth.js)
+- Authentication is via JWT Bearer token (`Authorization: Bearer <token>`). The token is issued by NextAuth.js on the frontend and forwarded to the Go API on every request.
 - Dates are ISO 8601 strings (e.g. `2026-05-29T09:00:00.000Z`)
 - All list responses return an array directly (no envelope for MVP)
 
@@ -62,7 +62,7 @@ REST API design for the Time Tracker application. All endpoints are implemented 
 
 ### Auth — `/api/auth/**`
 
-Managed by NextAuth.js. Custom endpoints:
+Login and session management are handled by NextAuth.js on the Next.js frontend (`/api/auth/**` are NextAuth internal routes). The custom endpoints below are implemented in the Go API and handle registration, invites, and password reset:
 
 #### `POST /api/auth/register`
 **Auth:** Public
