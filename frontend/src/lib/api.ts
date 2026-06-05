@@ -1,17 +1,15 @@
 import { auth } from "@/lib/auth";
 
-const API_URL = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8080";
+const API_URL = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8081";
 
 async function getToken(): Promise<string | undefined> {
-  // Server-side: get token from session
   if (typeof window === "undefined") {
     const session = await auth();
-    return (session as any)?.token;
+    return session?.accessToken;
   }
-  // Client-side: use the session endpoint
   const res = await fetch("/api/auth/session");
   const session = await res.json();
-  return (session as any)?.token;
+  return session?.accessToken;
 }
 
 async function request<T>(

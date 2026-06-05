@@ -36,6 +36,28 @@ func (r *UserRepository) FindByEmail(ctx context.Context, email string) (*User, 
 	return u, nil
 }
 
+func (r *UserRepository) FindByID(ctx context.Context, id string) (*User, error) {
+	u := &User{}
+	err := r.db.QueryRowContext(ctx,
+		`SELECT id, name, email, password_hash, role, team_id, created_at FROM users WHERE id = $1`,
+		id,
+	).Scan(&u.ID, &u.Name, &u.Email, &u.PasswordHash, &u.Role, &u.TeamID, &u.CreatedAt)
+	if err != nil {
+		return nil, err
+	}
+	return u, nil
+}
+
+func (r *UserRepository) UpdateProfile(ctx context.Context, userID, name string) error {
+	_, err := r.db.ExecContext(ctx, `UPDATE users SET name = $1 WHERE id = $2`, name, userID)
+	return err
+}
+
+func (r *UserRepository) UpdatePassword(ctx context.Context, userID, passwordHash string) error {
+	_, err := r.db.ExecContext(ctx, `UPDATE users SET password_hash = $1 WHERE id = $2`, passwordHash, userID)
+	return err
+}
+
 func (r *UserRepository) CreateWithTeam(ctx context.Context, name, email, passwordHash, teamName string) (*User, error) {
 	tx, err := r.db.BeginTx(ctx, nil)
 	if err != nil {

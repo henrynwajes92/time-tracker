@@ -62,6 +62,11 @@ func RequireAdmin(next http.Handler) http.Handler {
 	})
 }
 
+func GetClaims(r *http.Request) (*Claims, bool) {
+	claims, ok := r.Context().Value(ClaimsKey).(*Claims)
+	return claims, ok
+}
+
 func writeError(w http.ResponseWriter, status int, msg string) {
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(status)

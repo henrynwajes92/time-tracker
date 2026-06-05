@@ -29,9 +29,22 @@ func main() {
 	}
 	defer db.Close()
 
+	// Repositories
 	userRepo := repository.NewUserRepository(db)
+	inviteRepo := repository.NewInviteRepository(db)
+	memberRepo := repository.NewMemberRepository(db)
+
+	// Services
 	authSvc := service.NewAuthService(userRepo)
+	inviteSvc := service.NewInviteService(inviteRepo, memberRepo, userRepo)
+	memberSvc := service.NewMemberService(memberRepo)
+	userSvc := service.NewUserService(userRepo)
+
+	// Handlers
 	authHandler := handler.NewAuthHandler(authSvc)
+	inviteHandler := handler.NewInviteHandler(inviteSvc)
+	memberHandler := handler.NewMemberHandler(memberSvc)
+	userHandler := handler.NewUserHandler(userSvc)
 
 	r := chi.NewRouter()
 	r.Use(middleware.Logger)
@@ -40,15 +53,34 @@ func main() {
 
 	r.Get("/health", handler.Health)
 
+	// Public auth routes
 	r.Route("/api/auth", func(r chi.Router) {
 		r.Post("/verify", authHandler.Verify)
 		r.Post("/register", authHandler.Register)
 	})
 
+	// Public invite routes
+	r.Get("/api/invites/{token}", inviteHandler.Get)
+	r.Post("/api/invites/{token}/accept", inviteHandler.Accept)
+
 	// Protected routes (JWT required)
 	r.Group(func(r chi.Router) {
 		r.Use(appMiddleware.Auth)
-		// Feature routes added as tasks progress
+
+		// User profile
+		r.Patch("/api/users/me", userHandler.UpdateProfile)
+		r.Patch("/api/users/me/password", userHandler.ChangePassword)
+
+		// Team members
+		r.Get("/api/team/members", memberHandler.List)
+
+		// Admin-only routes
+		r.Group(func(r chi.Router) {
+			r.Use(appMiddleware.RequireAdmin)
+			r.Post("/api/invites", inviteHandler.Create)
+			r.Patch("/api/team/members/{id}/role", memberHandler.UpdateRole)
+			r.Delete("/api/team/members/{id}", memberHandler.Remove)
+		})
 	})
 
 	log.Printf("Go API listening on :%s", port)
