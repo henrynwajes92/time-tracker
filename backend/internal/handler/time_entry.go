@@ -75,6 +75,49 @@ func (h *TimeEntryHandler) Stop(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, http.StatusOK, entry)
 }
 
+// POST /api/time-entries/manual
+func (h *TimeEntryHandler) CreateManual(w http.ResponseWriter, r *http.Request) {
+	claims, _ := middleware.GetClaims(r)
+
+	var req struct {
+		TaskID      string `json:"taskId"`
+		Description string `json:"description"`
+		StartedAt   string `json:"startedAt"`
+		EndedAt     string `json:"endedAt"`
+	}
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		writeJSON(w, http.StatusBadRequest, map[string]string{"error": "invalid request body"})
+		return
+	}
+	if req.TaskID == "" || req.StartedAt == "" || req.EndedAt == "" {
+		writeJSON(w, http.StatusBadRequest, map[string]string{"error": "taskId, startedAt and endedAt are required"})
+		return
+	}
+
+	entry, err := h.svc.CreateManual(r.Context(), claims.ID, req.TaskID, req.Description, req.StartedAt, req.EndedAt)
+	if err != nil {
+		writeJSON(w, http.StatusBadRequest, map[string]string{"error": err.Error()})
+		return
+	}
+	writeJSON(w, http.StatusCreated, entry)
+}
+
+// DELETE /api/time-entries/:id
+func (h *TimeEntryHandler) Delete(w http.ResponseWriter, r *http.Request) {
+	claims, _ := middleware.GetClaims(r)
+	id := chi.URLParam(r, "id")
+
+	if err := h.svc.Delete(r.Context(), id, claims.ID); err != nil {
+		if errors.Is(err, service.ErrEntryNotFound) {
+			writeJSON(w, http.StatusNotFound, map[string]string{"error": "entry not found"})
+			return
+		}
+		writeJSON(w, http.StatusInternalServerError, map[string]string{"error": "could not delete entry"})
+		return
+	}
+	w.WriteHeader(http.StatusNoContent)
+}
+
 // GET /api/time-entries
 func (h *TimeEntryHandler) List(w http.ResponseWriter, r *http.Request) {
 	claims, _ := middleware.GetClaims(r)

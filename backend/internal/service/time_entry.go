@@ -4,12 +4,14 @@ import (
 	"context"
 	"database/sql"
 	"errors"
+	"time"
 
 	"github.com/henryu/time-tracker/backend/internal/repository"
 )
 
 var ErrActiveTimerExists = errors.New("a timer is already running")
 var ErrNoActiveTimer = errors.New("no active timer found")
+var ErrEntryNotFound = errors.New("time entry not found")
 
 type TimeEntryService struct {
 	repo *repository.TimeEntryRepository
@@ -44,6 +46,29 @@ func (s *TimeEntryService) Stop(ctx context.Context, id, userID string) (*reposi
 		return nil, ErrNoActiveTimer
 	}
 	return entry, err
+}
+
+func (s *TimeEntryService) CreateManual(ctx context.Context, userID, taskID, description string, startedAt, endedAt string) (*repository.TimeEntry, error) {
+	start, err := time.Parse(time.RFC3339, startedAt)
+	if err != nil {
+		return nil, errors.New("invalid startedAt format (use RFC3339)")
+	}
+	end, err := time.Parse(time.RFC3339, endedAt)
+	if err != nil {
+		return nil, errors.New("invalid endedAt format (use RFC3339)")
+	}
+	if !end.After(start) {
+		return nil, errors.New("endedAt must be after startedAt")
+	}
+	return s.repo.CreateManual(ctx, userID, taskID, description, start, end)
+}
+
+func (s *TimeEntryService) Delete(ctx context.Context, id, userID string) error {
+	err := s.repo.Delete(ctx, id, userID)
+	if errors.Is(err, sql.ErrNoRows) {
+		return ErrEntryNotFound
+	}
+	return err
 }
 
 func (s *TimeEntryService) ListRecent(ctx context.Context, userID string, limit int) ([]*repository.TimeEntry, error) {

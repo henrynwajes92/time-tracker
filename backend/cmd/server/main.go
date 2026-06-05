@@ -89,7 +89,9 @@ func main() {
 		r.Get("/api/time-entries", timeEntryHandler.List)
 		r.Get("/api/time-entries/active", timeEntryHandler.GetActive)
 		r.Post("/api/time-entries", timeEntryHandler.Start)
+		r.Post("/api/time-entries/manual", timeEntryHandler.CreateManual)
 		r.Post("/api/time-entries/{id}/stop", timeEntryHandler.Stop)
+		r.Delete("/api/time-entries/{id}", timeEntryHandler.Delete)
 
 		// Admin-only routes
 		r.Group(func(r chi.Router) {

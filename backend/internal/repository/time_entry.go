@@ -65,6 +65,33 @@ func (r *TimeEntryRepository) Stop(ctx context.Context, id, userID string) (*Tim
 	return e, nil
 }
 
+func (r *TimeEntryRepository) CreateManual(ctx context.Context, userID, taskID, description string, startedAt, endedAt time.Time) (*TimeEntry, error) {
+	duration := int(endedAt.Sub(startedAt).Seconds())
+	e := &TimeEntry{}
+	err := r.db.QueryRowContext(ctx,
+		`INSERT INTO time_entries (user_id, task_id, description, started_at, ended_at, duration_seconds)
+		 VALUES ($1, $2, $3, $4, $5, $6)
+		 RETURNING id, user_id, task_id, started_at, ended_at, duration_seconds, COALESCE(description,''), created_at`,
+		userID, taskID, description, startedAt, endedAt, duration,
+	).Scan(&e.ID, &e.UserID, &e.TaskID, &e.StartedAt, &e.EndedAt, &e.DurationSeconds, &e.Description, &e.CreatedAt)
+	return e, err
+}
+
+func (r *TimeEntryRepository) Delete(ctx context.Context, id, userID string) error {
+	result, err := r.db.ExecContext(ctx,
+		`DELETE FROM time_entries WHERE id = $1 AND user_id = $2`,
+		id, userID,
+	)
+	if err != nil {
+		return err
+	}
+	n, _ := result.RowsAffected()
+	if n == 0 {
+		return sql.ErrNoRows
+	}
+	return nil
+}
+
 func (r *TimeEntryRepository) List(ctx context.Context, userID string, limit int) ([]*TimeEntry, error) {
 	rows, err := r.db.QueryContext(ctx,
 		`SELECT id, user_id, task_id, started_at, ended_at, duration_seconds, COALESCE(description,''), created_at
