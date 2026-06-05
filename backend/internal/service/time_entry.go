@@ -71,6 +71,14 @@ func (s *TimeEntryService) Delete(ctx context.Context, id, userID string) error 
 	return err
 }
 
+func (s *TimeEntryService) DashboardStats(ctx context.Context, userID string) (int, int, []repository.DayStats, error) {
+	today, week, days, err := s.repo.DashboardStats(ctx, userID)
+	if days == nil {
+		days = []repository.DayStats{}
+	}
+	return today, week, days, err
+}
+
 func (s *TimeEntryService) ListRecent(ctx context.Context, userID string, limit int) ([]*repository.TimeEntry, error) {
 	entries, err := s.repo.List(ctx, userID, limit)
 	if err != nil {

@@ -92,6 +92,57 @@ func (r *TimeEntryRepository) Delete(ctx context.Context, id, userID string) err
 	return nil
 }
 
+type DayStats struct {
+	Date    string `json:"date"`
+	Seconds int    `json:"seconds"`
+}
+
+func (r *TimeEntryRepository) DashboardStats(ctx context.Context, userID string) (todaySeconds int, weekSeconds int, weekDays []DayStats, err error) {
+	// Today total
+	err = r.db.QueryRowContext(ctx,
+		`SELECT COALESCE(SUM(duration_seconds), 0) FROM time_entries
+		 WHERE user_id = $1 AND started_at >= CURRENT_DATE AND ended_at IS NOT NULL`,
+		userID,
+	).Scan(&todaySeconds)
+	if err != nil {
+		return
+	}
+
+	// Week total
+	err = r.db.QueryRowContext(ctx,
+		`SELECT COALESCE(SUM(duration_seconds), 0) FROM time_entries
+		 WHERE user_id = $1 AND started_at >= DATE_TRUNC('week', CURRENT_DATE) AND ended_at IS NOT NULL`,
+		userID,
+	).Scan(&weekSeconds)
+	if err != nil {
+		return
+	}
+
+	// Per-day breakdown this week
+	rows, err := r.db.QueryContext(ctx,
+		`SELECT TO_CHAR(started_at AT TIME ZONE 'UTC', 'YYYY-MM-DD') AS day,
+		        COALESCE(SUM(duration_seconds), 0)
+		 FROM time_entries
+		 WHERE user_id = $1 AND started_at >= DATE_TRUNC('week', CURRENT_DATE) AND ended_at IS NOT NULL
+		 GROUP BY day ORDER BY day`,
+		userID,
+	)
+	if err != nil {
+		return
+	}
+	defer rows.Close()
+	for rows.Next() {
+		var d DayStats
+		if scanErr := rows.Scan(&d.Date, &d.Seconds); scanErr != nil {
+			err = scanErr
+			return
+		}
+		weekDays = append(weekDays, d)
+	}
+	err = rows.Err()
+	return
+}
+
 func (r *TimeEntryRepository) List(ctx context.Context, userID string, limit int) ([]*TimeEntry, error) {
 	rows, err := r.db.QueryContext(ctx,
 		`SELECT id, user_id, task_id, started_at, ended_at, duration_seconds, COALESCE(description,''), created_at

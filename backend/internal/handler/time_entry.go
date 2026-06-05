@@ -18,6 +18,37 @@ func NewTimeEntryHandler(svc *service.TimeEntryService) *TimeEntryHandler {
 	return &TimeEntryHandler{svc: svc}
 }
 
+// GET /api/dashboard
+func (h *TimeEntryHandler) Dashboard(w http.ResponseWriter, r *http.Request) {
+	claims, _ := middleware.GetClaims(r)
+
+	active, err := h.svc.GetActive(r.Context(), claims.ID)
+	if err != nil {
+		writeJSON(w, http.StatusInternalServerError, map[string]string{"error": "dashboard error"})
+		return
+	}
+
+	todaySec, weekSec, weekDays, err := h.svc.DashboardStats(r.Context(), claims.ID)
+	if err != nil {
+		writeJSON(w, http.StatusInternalServerError, map[string]string{"error": "dashboard stats error"})
+		return
+	}
+
+	recent, err := h.svc.ListRecent(r.Context(), claims.ID, 5)
+	if err != nil {
+		writeJSON(w, http.StatusInternalServerError, map[string]string{"error": "recent entries error"})
+		return
+	}
+
+	writeJSON(w, http.StatusOK, map[string]any{
+		"activeTimer":   active,
+		"todaySeconds":  todaySec,
+		"weekSeconds":   weekSec,
+		"weekDays":      weekDays,
+		"recentEntries": recent,
+	})
+}
+
 // GET /api/time-entries/active
 func (h *TimeEntryHandler) GetActive(w http.ResponseWriter, r *http.Request) {
 	claims, _ := middleware.GetClaims(r)
