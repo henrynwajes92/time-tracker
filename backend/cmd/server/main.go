@@ -33,18 +33,22 @@ func main() {
 	userRepo := repository.NewUserRepository(db)
 	inviteRepo := repository.NewInviteRepository(db)
 	memberRepo := repository.NewMemberRepository(db)
+	projectRepo := repository.NewProjectRepository(db)
+	taskRepo := repository.NewTaskRepository(db)
 
 	// Services
 	authSvc := service.NewAuthService(userRepo)
 	inviteSvc := service.NewInviteService(inviteRepo, memberRepo, userRepo)
 	memberSvc := service.NewMemberService(memberRepo)
 	userSvc := service.NewUserService(userRepo)
+	projectSvc := service.NewProjectService(projectRepo, taskRepo)
 
 	// Handlers
 	authHandler := handler.NewAuthHandler(authSvc)
 	inviteHandler := handler.NewInviteHandler(inviteSvc)
 	memberHandler := handler.NewMemberHandler(memberSvc)
 	userHandler := handler.NewUserHandler(userSvc)
+	projectHandler := handler.NewProjectHandler(projectSvc)
 
 	r := chi.NewRouter()
 	r.Use(middleware.Logger)
@@ -74,12 +78,22 @@ func main() {
 		// Team members
 		r.Get("/api/team/members", memberHandler.List)
 
+		// Projects & tasks (all authenticated users can read)
+		r.Get("/api/projects", projectHandler.List)
+		r.Get("/api/projects/{id}", projectHandler.Get)
+
 		// Admin-only routes
 		r.Group(func(r chi.Router) {
 			r.Use(appMiddleware.RequireAdmin)
 			r.Post("/api/invites", inviteHandler.Create)
 			r.Patch("/api/team/members/{id}/role", memberHandler.UpdateRole)
 			r.Delete("/api/team/members/{id}", memberHandler.Remove)
+			r.Post("/api/projects", projectHandler.Create)
+			r.Patch("/api/projects/{id}", projectHandler.Update)
+			r.Delete("/api/projects/{id}", projectHandler.Archive)
+			r.Post("/api/projects/{id}/tasks", projectHandler.CreateTask)
+			r.Patch("/api/tasks/{id}", projectHandler.UpdateTask)
+			r.Delete("/api/tasks/{id}", projectHandler.ArchiveTask)
 		})
 	})
 
