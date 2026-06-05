@@ -3,6 +3,7 @@ package repository
 import (
 	"context"
 	"database/sql"
+	"fmt"
 	"time"
 )
 
@@ -75,6 +76,68 @@ func (r *TimeEntryRepository) CreateManual(ctx context.Context, userID, taskID, 
 		userID, taskID, description, startedAt, endedAt, duration,
 	).Scan(&e.ID, &e.UserID, &e.TaskID, &e.StartedAt, &e.EndedAt, &e.DurationSeconds, &e.Description, &e.CreatedAt)
 	return e, err
+}
+
+type ReportEntry struct {
+	UserID          string    `json:"userId"`
+	UserName        string    `json:"userName"`
+	ProjectName     string    `json:"projectName"`
+	TaskName        string    `json:"taskName"`
+	Description     string    `json:"description"`
+	StartedAt       time.Time `json:"startedAt"`
+	DurationSeconds int       `json:"durationSeconds"`
+}
+
+func (r *TimeEntryRepository) Report(ctx context.Context, teamID, userID, projectID, from, to string) ([]*ReportEntry, error) {
+	base := `
+		SELECT u.id, u.name, p.name, t.name, COALESCE(te.description,''), te.started_at, COALESCE(te.duration_seconds,0)
+		FROM time_entries te
+		JOIN users u ON u.id = te.user_id
+		JOIN tasks t ON t.id = te.task_id
+		JOIN projects p ON p.id = t.project_id
+		WHERE u.team_id = $1 AND te.ended_at IS NOT NULL`
+
+	args := []any{teamID}
+	n := 2
+
+	addFilter := func(clause string, val string) {
+		base += fmt.Sprintf(" AND %s = $%d", clause, n)
+		args = append(args, val)
+		n++
+	}
+	addRange := func(clause string, val string) {
+		base += fmt.Sprintf(" AND %s >= $%d", clause, n)
+		args = append(args, val)
+		n++
+	}
+	addRangeEnd := func(clause string, val string) {
+		base += fmt.Sprintf(" AND %s < $%d", clause, n)
+		args = append(args, val)
+		n++
+	}
+
+	if userID != "" { addFilter("te.user_id", userID) }
+	if projectID != "" { addFilter("p.id", projectID) }
+	if from != "" { addRange("te.started_at", from) }
+	if to != "" { addRangeEnd("te.started_at", to) }
+
+	base += " ORDER BY te.started_at DESC"
+
+	rows, err := r.db.QueryContext(ctx, base, args...)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var entries []*ReportEntry
+	for rows.Next() {
+		e := &ReportEntry{}
+		if err := rows.Scan(&e.UserID, &e.UserName, &e.ProjectName, &e.TaskName, &e.Description, &e.StartedAt, &e.DurationSeconds); err != nil {
+			return nil, err
+		}
+		entries = append(entries, e)
+	}
+	return entries, rows.Err()
 }
 
 func (r *TimeEntryRepository) Delete(ctx context.Context, id, userID string) error {

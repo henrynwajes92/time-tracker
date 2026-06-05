@@ -85,8 +85,9 @@ func main() {
 		r.Get("/api/projects", projectHandler.List)
 		r.Get("/api/projects/{id}", projectHandler.Get)
 
-		// Dashboard
+		// Dashboard & reports
 		r.Get("/api/dashboard", timeEntryHandler.Dashboard)
+		r.Get("/api/reports", timeEntryHandler.Report)
 
 		// Time entries
 		r.Get("/api/time-entries", timeEntryHandler.List)

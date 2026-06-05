@@ -3,6 +3,7 @@ package handler
 import (
 	"encoding/json"
 	"errors"
+	"fmt"
 	"net/http"
 
 	"github.com/go-chi/chi/v5"
@@ -16,6 +17,41 @@ type TimeEntryHandler struct {
 
 func NewTimeEntryHandler(svc *service.TimeEntryService) *TimeEntryHandler {
 	return &TimeEntryHandler{svc: svc}
+}
+
+// GET /api/reports?from=&to=&userId=&projectId=&format=csv
+func (h *TimeEntryHandler) Report(w http.ResponseWriter, r *http.Request) {
+	claims, _ := middleware.GetClaims(r)
+	q := r.URL.Query()
+
+	// Members can only see their own data
+	userID := q.Get("userId")
+	if claims.Role != "ADMIN" {
+		userID = claims.ID
+	}
+
+	entries, err := h.svc.Report(r.Context(), claims.TeamID, userID, q.Get("projectId"), q.Get("from"), q.Get("to"))
+	if err != nil {
+		writeJSON(w, http.StatusInternalServerError, map[string]string{"error": "report error"})
+		return
+	}
+
+	if q.Get("format") == "csv" {
+		w.Header().Set("Content-Type", "text/csv")
+		w.Header().Set("Content-Disposition", "attachment; filename=time-report.csv")
+		fmt.Fprintln(w, "Date,User,Project,Task,Description,Hours")
+		for _, e := range entries {
+			hours := float64(e.DurationSeconds) / 3600
+			fmt.Fprintf(w, "%s,%s,%s,%s,%q,%.2f\n",
+				e.StartedAt.Format("2006-01-02"),
+				e.UserName, e.ProjectName, e.TaskName,
+				e.Description, hours,
+			)
+		}
+		return
+	}
+
+	writeJSON(w, http.StatusOK, entries)
 }
 
 // GET /api/dashboard
