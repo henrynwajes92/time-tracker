@@ -35,6 +35,7 @@ func main() {
 	memberRepo := repository.NewMemberRepository(db)
 	projectRepo := repository.NewProjectRepository(db)
 	taskRepo := repository.NewTaskRepository(db)
+	timeEntryRepo := repository.NewTimeEntryRepository(db)
 
 	// Services
 	authSvc := service.NewAuthService(userRepo)
@@ -42,6 +43,7 @@ func main() {
 	memberSvc := service.NewMemberService(memberRepo)
 	userSvc := service.NewUserService(userRepo)
 	projectSvc := service.NewProjectService(projectRepo, taskRepo)
+	timeEntrySvc := service.NewTimeEntryService(timeEntryRepo)
 
 	// Handlers
 	authHandler := handler.NewAuthHandler(authSvc)
@@ -49,6 +51,7 @@ func main() {
 	memberHandler := handler.NewMemberHandler(memberSvc)
 	userHandler := handler.NewUserHandler(userSvc)
 	projectHandler := handler.NewProjectHandler(projectSvc)
+	timeEntryHandler := handler.NewTimeEntryHandler(timeEntrySvc)
 
 	r := chi.NewRouter()
 	r.Use(middleware.Logger)
@@ -81,6 +84,12 @@ func main() {
 		// Projects & tasks (all authenticated users can read)
 		r.Get("/api/projects", projectHandler.List)
 		r.Get("/api/projects/{id}", projectHandler.Get)
+
+		// Time entries
+		r.Get("/api/time-entries", timeEntryHandler.List)
+		r.Get("/api/time-entries/active", timeEntryHandler.GetActive)
+		r.Post("/api/time-entries", timeEntryHandler.Start)
+		r.Post("/api/time-entries/{id}/stop", timeEntryHandler.Stop)
 
 		// Admin-only routes
 		r.Group(func(r chi.Router) {
