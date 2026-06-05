@@ -42,8 +42,8 @@ func (r *TimeEntryRepository) FindActive(ctx context.Context, userID string) (*T
 func (r *TimeEntryRepository) Start(ctx context.Context, userID, taskID, description string) (*TimeEntry, error) {
 	e := &TimeEntry{}
 	err := r.db.QueryRowContext(ctx,
-		`INSERT INTO time_entries (user_id, task_id, description)
-		 VALUES ($1, $2, $3)
+		`INSERT INTO time_entries (user_id, task_id, description, started_at)
+		 VALUES ($1, $2, $3, NOW())
 		 RETURNING id, user_id, task_id, started_at, ended_at, duration_seconds, COALESCE(description,''), created_at`,
 		userID, taskID, description,
 	).Scan(&e.ID, &e.UserID, &e.TaskID, &e.StartedAt, &e.EndedAt, &e.DurationSeconds, &e.Description, &e.CreatedAt)
