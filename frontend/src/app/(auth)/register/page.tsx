@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
+import Image from "next/image";
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8080";
 
@@ -43,9 +44,12 @@ export default function RegisterPage() {
   }
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gray-50">
+    <div className="min-h-screen flex items-center justify-center bg-slate-50">
       <div className="w-full max-w-sm space-y-6 p-8 bg-white rounded-xl shadow">
-        <h1 className="text-2xl font-semibold text-center">Create account</h1>
+        <div className="flex flex-col items-center gap-2">
+          <Image src="/cobalt-logo.png" alt="Cobalt" width={56} height={56} className="rounded-full" />
+          <h1 className="text-2xl font-semibold">Create your account</h1>
+        </div>
 
         <form onSubmit={handleSubmit} className="space-y-4">
           <div>
