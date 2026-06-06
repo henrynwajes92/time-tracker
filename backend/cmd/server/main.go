@@ -9,6 +9,7 @@ import (
 	"github.com/go-chi/chi/v5/middleware"
 	"github.com/joho/godotenv"
 
+	"github.com/henryu/time-tracker/backend/internal/email"
 	"github.com/henryu/time-tracker/backend/internal/handler"
 	appMiddleware "github.com/henryu/time-tracker/backend/internal/middleware"
 	"github.com/henryu/time-tracker/backend/internal/repository"
@@ -46,8 +47,9 @@ func main() {
 	timeEntrySvc := service.NewTimeEntryService(timeEntryRepo)
 
 	// Handlers
+	emailClient := email.New()
 	authHandler := handler.NewAuthHandler(authSvc)
-	inviteHandler := handler.NewInviteHandler(inviteSvc)
+	inviteHandler := handler.NewInviteHandler(inviteSvc, emailClient)
 	memberHandler := handler.NewMemberHandler(memberSvc)
 	userHandler := handler.NewUserHandler(userSvc)
 	projectHandler := handler.NewProjectHandler(projectSvc)

@@ -4,31 +4,34 @@ import (
 	"database/sql"
 	"encoding/json"
 	"errors"
+	"log"
 	"net/http"
 	"os"
 
 	"github.com/go-chi/chi/v5"
+	"github.com/henryu/time-tracker/backend/internal/email"
 	"github.com/henryu/time-tracker/backend/internal/middleware"
 	"github.com/henryu/time-tracker/backend/internal/service"
 )
 
 type InviteHandler struct {
-	svc *service.InviteService
+	svc         *service.InviteService
+	emailClient *email.Client
 }
 
-func NewInviteHandler(svc *service.InviteService) *InviteHandler {
-	return &InviteHandler{svc: svc}
+func NewInviteHandler(svc *service.InviteService, emailClient *email.Client) *InviteHandler {
+	return &InviteHandler{svc: svc, emailClient: emailClient}
 }
 
-// POST /api/invites — admin creates an invite link
+// POST /api/invites — admin creates an invite and emails the link
 func (h *InviteHandler) Create(w http.ResponseWriter, r *http.Request) {
 	claims, _ := middleware.GetClaims(r)
 
 	var req struct {
 		Email string `json:"email"`
 	}
-	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		writeJSON(w, http.StatusBadRequest, map[string]string{"error": "invalid request body"})
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil || req.Email == "" {
+		writeJSON(w, http.StatusBadRequest, map[string]string{"error": "email is required"})
 		return
 	}
 
@@ -42,11 +45,23 @@ func (h *InviteHandler) Create(w http.ResponseWriter, r *http.Request) {
 	if appURL == "" {
 		appURL = "https://time-tracker-lmi9.vercel.app"
 	}
+	inviteURL := appURL + "/invite/" + inv.Token
 
-	writeJSON(w, http.StatusCreated, map[string]string{
+	// Send email — non-fatal if it fails
+	emailSent := false
+	if h.emailClient.Enabled() {
+		if emailErr := h.emailClient.SendInvite(req.Email, inviteURL); emailErr != nil {
+			log.Printf("invite email to %s failed: %v", req.Email, emailErr)
+		} else {
+			emailSent = true
+		}
+	}
+
+	writeJSON(w, http.StatusCreated, map[string]any{
 		"token":     inv.Token,
-		"inviteUrl": appURL + "/invite/" + inv.Token,
+		"inviteUrl": inviteURL,
 		"email":     inv.Email,
+		"emailSent": emailSent,
 	})
 }
 

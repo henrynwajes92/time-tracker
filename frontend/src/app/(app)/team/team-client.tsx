@@ -24,6 +24,7 @@ export default function TeamClient({ members: initial, currentUserId, accessToke
   const [inviteEmail, setInviteEmail] = useState("");
   const [inviteLink, setInviteLink] = useState("");
   const [inviteLoading, setInviteLoading] = useState(false);
+  const [emailSent, setEmailSent] = useState(false);
   const [error, setError] = useState("");
 
   function fetchWithToken(path: string, options: RequestInit = {}) {
@@ -58,6 +59,7 @@ export default function TeamClient({ members: initial, currentUserId, accessToke
 
     const data = await res.json();
     setInviteLink(data.inviteUrl);
+    setEmailSent(data.emailSent ?? false);
     setInviteEmail("");
   }
 
@@ -110,8 +112,16 @@ export default function TeamClient({ members: initial, currentUserId, accessToke
         {error && <p className="mt-2 text-sm text-red-600">{error}</p>}
 
         {inviteLink && (
-          <div className="mt-3">
-            <p className="text-sm text-gray-600 mb-1">Share this link with your team member:</p>
+          <div className="mt-3 space-y-2">
+            {emailSent ? (
+              <p className="text-sm text-green-600 font-medium">
+                ✓ Invite email sent successfully.
+              </p>
+            ) : (
+              <p className="text-sm text-amber-600">
+                Email not configured — share this link manually:
+              </p>
+            )}
             <div className="flex items-center gap-2">
               <input
                 readOnly
