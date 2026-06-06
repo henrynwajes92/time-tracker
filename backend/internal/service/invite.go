@@ -22,8 +22,8 @@ func NewInviteService(inviteRepo *repository.InviteRepository, memberRepo *repos
 	return &InviteService{inviteRepo: inviteRepo, memberRepo: memberRepo, userRepo: userRepo}
 }
 
-func (s *InviteService) CreateInvite(ctx context.Context, email, teamID, createdBy string) (*repository.InviteToken, error) {
-	return s.inviteRepo.Create(ctx, email, teamID, createdBy)
+func (s *InviteService) CreateInvite(ctx context.Context, email, teamID string) (*repository.InviteToken, error) {
+	return s.inviteRepo.Create(ctx, email, teamID)
 }
 
 func (s *InviteService) GetInvite(ctx context.Context, token string) (*repository.InviteToken, error) {

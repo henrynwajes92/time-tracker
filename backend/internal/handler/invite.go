@@ -32,7 +32,7 @@ func (h *InviteHandler) Create(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	inv, err := h.svc.CreateInvite(r.Context(), req.Email, claims.TeamID, claims.ID)
+	inv, err := h.svc.CreateInvite(r.Context(), req.Email, claims.TeamID)
 	if err != nil {
 		writeJSON(w, http.StatusInternalServerError, map[string]string{"error": "could not create invite"})
 		return
@@ -40,7 +40,7 @@ func (h *InviteHandler) Create(w http.ResponseWriter, r *http.Request) {
 
 	appURL := os.Getenv("APP_URL")
 	if appURL == "" {
-		appURL = "http://localhost:3001"
+		appURL = "https://time-tracker-lmi9.vercel.app"
 	}
 
 	writeJSON(w, http.StatusCreated, map[string]string{

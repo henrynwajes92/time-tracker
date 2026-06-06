@@ -13,7 +13,6 @@ type InviteToken struct {
 	Token     string    `json:"token"`
 	Email     string    `json:"email"`
 	TeamID    string    `json:"teamId"`
-	CreatedBy string    `json:"createdBy"`
 	ExpiresAt time.Time `json:"expiresAt"`
 	CreatedAt time.Time `json:"createdAt"`
 }
@@ -26,7 +25,7 @@ func NewInviteRepository(db *sql.DB) *InviteRepository {
 	return &InviteRepository{db: db}
 }
 
-func (r *InviteRepository) Create(ctx context.Context, email, teamID, createdBy string) (*InviteToken, error) {
+func (r *InviteRepository) Create(ctx context.Context, email, teamID string) (*InviteToken, error) {
 	b := make([]byte, 24)
 	if _, err := rand.Read(b); err != nil {
 		return nil, err
@@ -36,21 +35,21 @@ func (r *InviteRepository) Create(ctx context.Context, email, teamID, createdBy 
 
 	inv := &InviteToken{}
 	err := r.db.QueryRowContext(ctx,
-		`INSERT INTO invite_tokens (token, email, team_id, created_by, expires_at)
-		 VALUES ($1, $2, $3, $4, $5)
-		 RETURNING id, token, email, team_id, created_by, expires_at, created_at`,
-		token, email, teamID, createdBy, expiresAt,
-	).Scan(&inv.ID, &inv.Token, &inv.Email, &inv.TeamID, &inv.CreatedBy, &inv.ExpiresAt, &inv.CreatedAt)
+		`INSERT INTO invite_tokens (token, email, team_id, expires_at)
+		 VALUES ($1, $2, $3, $4)
+		 RETURNING id, token, email, team_id, expires_at, created_at`,
+		token, email, teamID, expiresAt,
+	).Scan(&inv.ID, &inv.Token, &inv.Email, &inv.TeamID, &inv.ExpiresAt, &inv.CreatedAt)
 	return inv, err
 }
 
 func (r *InviteRepository) FindByToken(ctx context.Context, token string) (*InviteToken, error) {
 	inv := &InviteToken{}
 	err := r.db.QueryRowContext(ctx,
-		`SELECT id, token, email, team_id, created_by, expires_at, created_at
+		`SELECT id, token, email, team_id, expires_at, created_at
 		 FROM invite_tokens WHERE token = $1 AND expires_at > NOW()`,
 		token,
-	).Scan(&inv.ID, &inv.Token, &inv.Email, &inv.TeamID, &inv.CreatedBy, &inv.ExpiresAt, &inv.CreatedAt)
+	).Scan(&inv.ID, &inv.Token, &inv.Email, &inv.TeamID, &inv.ExpiresAt, &inv.CreatedAt)
 	if err != nil {
 		return nil, err
 	}
