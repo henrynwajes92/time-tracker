@@ -96,7 +96,7 @@ export default function EntriesClient({ entries: initial, projects }: Props) {
       <div className="flex justify-end">
         <button
           onClick={() => setShowForm(!showForm)}
-          className="bg-black text-white px-4 py-2 rounded-md text-sm font-medium hover:bg-gray-800"
+          className="bg-blue-600 text-white px-4 py-2 rounded-md text-sm font-medium hover:bg-blue-700"
         >
           {showForm ? "Cancel" : "Log time manually"}
         </button>
@@ -113,7 +113,7 @@ export default function EntriesClient({ entries: initial, projects }: Props) {
                   value={selectedProject}
                   onChange={(e) => { setSelectedProject(e.target.value); setSelectedTask(""); }}
                   required
-                  className="w-full border rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-black"
+                  className="w-full border rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
                 >
                   <option value="">Select project…</option>
                   {projects.map((p) => <option key={p.id} value={p.id}>{p.name}</option>)}
@@ -126,7 +126,7 @@ export default function EntriesClient({ entries: initial, projects }: Props) {
                   onChange={(e) => setSelectedTask(e.target.value)}
                   required
                   disabled={!selectedProject}
-                  className="w-full border rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-black disabled:bg-gray-50"
+                  className="w-full border rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:bg-gray-50"
                 >
                   <option value="">Select task…</option>
                   {availableTasks.map((t) => <option key={t.id} value={t.id}>{t.name}</option>)}
@@ -142,7 +142,7 @@ export default function EntriesClient({ entries: initial, projects }: Props) {
                   value={startedAt}
                   onChange={(e) => setStartedAt(e.target.value)}
                   required
-                  className="w-full border rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-black"
+                  className="w-full border rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
                 />
               </div>
               <div>
@@ -152,7 +152,7 @@ export default function EntriesClient({ entries: initial, projects }: Props) {
                   value={endedAt}
                   onChange={(e) => setEndedAt(e.target.value)}
                   required
-                  className="w-full border rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-black"
+                  className="w-full border rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
                 />
               </div>
             </div>
@@ -163,7 +163,7 @@ export default function EntriesClient({ entries: initial, projects }: Props) {
                 value={description}
                 onChange={(e) => setDescription(e.target.value)}
                 placeholder="What did you work on?"
-                className="w-full border rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-black"
+                className="w-full border rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
               />
             </div>
 
@@ -171,7 +171,7 @@ export default function EntriesClient({ entries: initial, projects }: Props) {
 
             <div className="flex justify-end gap-2">
               <button type="button" onClick={() => setShowForm(false)} className="px-4 py-2 border rounded-md text-sm hover:bg-gray-50">Cancel</button>
-              <button type="submit" disabled={saving} className="bg-black text-white px-4 py-2 rounded-md text-sm hover:bg-gray-800 disabled:opacity-50">
+              <button type="submit" disabled={saving} className="bg-blue-600 text-white px-4 py-2 rounded-md text-sm hover:bg-blue-700 disabled:opacity-50">
                 {saving ? "Saving…" : "Save entry"}
               </button>
             </div>

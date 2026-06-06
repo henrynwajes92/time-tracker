@@ -108,18 +108,18 @@ export default function ReportsClient({ members, projects, isAdmin, currentUserI
           <div>
             <label className="block text-sm font-medium mb-1">From</label>
             <input type="date" value={from} onChange={(e) => setFrom(e.target.value)}
-              className="w-full border rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-black" />
+              className="w-full border rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" />
           </div>
           <div>
             <label className="block text-sm font-medium mb-1">To</label>
             <input type="date" value={to} onChange={(e) => setTo(e.target.value)}
-              className="w-full border rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-black" />
+              className="w-full border rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" />
           </div>
           {isAdmin && (
             <div>
               <label className="block text-sm font-medium mb-1">User</label>
               <select value={userId} onChange={(e) => setUserId(e.target.value)}
-                className="w-full border rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-black">
+                className="w-full border rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
                 <option value="">All members</option>
                 {members.map((m) => <option key={m.id} value={m.id}>{m.name}</option>)}
               </select>
@@ -128,7 +128,7 @@ export default function ReportsClient({ members, projects, isAdmin, currentUserI
           <div>
             <label className="block text-sm font-medium mb-1">Project</label>
             <select value={projectId} onChange={(e) => setProjectId(e.target.value)}
-              className="w-full border rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-black">
+              className="w-full border rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
               <option value="">All projects</option>
               {projects.map((p) => <option key={p.id} value={p.id}>{p.name}</option>)}
             </select>
@@ -137,7 +137,7 @@ export default function ReportsClient({ members, projects, isAdmin, currentUserI
         {error && <p className="mt-3 text-sm text-red-600">{error}</p>}
         <div className="mt-4 flex gap-2">
           <button type="submit" disabled={loading}
-            className="bg-black text-white px-4 py-2 rounded-md text-sm font-medium hover:bg-gray-800 disabled:opacity-50">
+            className="bg-blue-600 text-white px-4 py-2 rounded-md text-sm font-medium hover:bg-blue-700 disabled:opacity-50">
             {loading ? "Loading…" : "Run report"}
           </button>
           {entries && entries.length > 0 && (

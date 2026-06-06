@@ -104,7 +104,7 @@ export default function ProjectDetailClient({ project, tasks: initialTasks, isAd
                       autoFocus
                       value={editName}
                       onChange={(e) => setEditName(e.target.value)}
-                      className="flex-1 border rounded px-2 py-1 text-sm focus:outline-none focus:ring-2 focus:ring-black"
+                      className="flex-1 border rounded px-2 py-1 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
                     />
                     <button onClick={() => handleUpdateTask(t.id)} className="text-sm font-medium hover:underline">Save</button>
                     <button onClick={() => setEditingId(null)} className="text-sm text-gray-500 hover:underline">Cancel</button>
@@ -139,12 +139,12 @@ export default function ProjectDetailClient({ project, tasks: initialTasks, isAd
               value={newTaskName}
               onChange={(e) => setNewTaskName(e.target.value)}
               required
-              className="flex-1 border rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-black"
+              className="flex-1 border rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
             />
             <button
               type="submit"
               disabled={adding}
-              className="bg-black text-white px-4 py-2 rounded-md text-sm hover:bg-gray-800 disabled:opacity-50"
+              className="bg-blue-600 text-white px-4 py-2 rounded-md text-sm hover:bg-blue-700 disabled:opacity-50"
             >
               {adding ? "Adding…" : "Add task"}
             </button>

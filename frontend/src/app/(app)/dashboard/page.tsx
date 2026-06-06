@@ -84,7 +84,7 @@ export default async function DashboardPage() {
               <div key={day.date} className="flex-1 flex flex-col items-center gap-1">
                 <div className="w-full flex items-end justify-center" style={{ height: "96px" }}>
                   <div
-                    className={`w-full rounded-t transition-all ${isToday ? "bg-black" : "bg-gray-200"}`}
+                    className={`w-full rounded-t transition-all ${isToday ? "bg-blue-600" : "bg-blue-100"}`}
                     style={{ height: `${Math.max(heightPct, day.seconds > 0 ? 4 : 0)}%` }}
                     title={day.seconds > 0 ? formatDuration(day.seconds) : "No entries"}
                   />

@@ -25,7 +25,7 @@ export default function ActiveTimerBanner({ entry }: { entry: TimeEntry }) {
   }, []);
 
   return (
-    <div className="bg-black text-white rounded-xl px-6 py-4 flex items-center justify-between max-w-2xl">
+    <div className="bg-blue-700 text-white rounded-xl px-6 py-4 flex items-center justify-between max-w-2xl">
       <div>
         <p className="text-xs text-gray-400 uppercase tracking-wide">Timer running</p>
         <p className="font-mono text-2xl mt-0.5">{formatElapsed(elapsed)}</p>
@@ -33,7 +33,7 @@ export default function ActiveTimerBanner({ entry }: { entry: TimeEntry }) {
       </div>
       <Link
         href="/timer"
-        className="bg-white text-black px-4 py-2 rounded-lg text-sm font-medium hover:bg-gray-100 transition-colors"
+        className="bg-white text-blue-700 px-4 py-2 rounded-lg text-sm font-medium hover:bg-blue-50 transition-colors"
       >
         Stop timer
       </Link>

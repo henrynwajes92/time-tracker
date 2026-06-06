@@ -74,7 +74,7 @@ export default function ProjectsClient({ projects: initial, isAdmin }: Props) {
           {!showForm ? (
             <button
               onClick={() => setShowForm(true)}
-              className="bg-black text-white px-4 py-2 rounded-md text-sm font-medium hover:bg-gray-800"
+              className="bg-blue-600 text-white px-4 py-2 rounded-md text-sm font-medium hover:bg-blue-700"
             >
               New project
             </button>
@@ -87,21 +87,21 @@ export default function ProjectsClient({ projects: initial, isAdmin }: Props) {
                   value={name}
                   onChange={(e) => setName(e.target.value)}
                   required
-                  className="w-full border rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-black"
+                  className="w-full border rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
                 />
                 <textarea
                   placeholder="Description (optional)"
                   value={description}
                   onChange={(e) => setDescription(e.target.value)}
                   rows={2}
-                  className="w-full border rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-black resize-none"
+                  className="w-full border rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 resize-none"
                 />
                 {error && <p className="text-sm text-red-600">{error}</p>}
                 <div className="flex gap-2 justify-end">
                   <button type="button" onClick={() => setShowForm(false)} className="px-4 py-2 text-sm border rounded-md hover:bg-gray-50">
                     Cancel
                   </button>
-                  <button type="submit" disabled={creating} className="bg-black text-white px-4 py-2 rounded-md text-sm hover:bg-gray-800 disabled:opacity-50">
+                  <button type="submit" disabled={creating} className="bg-blue-600 text-white px-4 py-2 rounded-md text-sm hover:bg-blue-700 disabled:opacity-50">
                     {creating ? "Creating…" : "Create"}
                   </button>
                 </div>
