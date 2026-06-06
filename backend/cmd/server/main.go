@@ -95,6 +95,7 @@ func main() {
 		r.Post("/api/time-entries", timeEntryHandler.Start)
 		r.Post("/api/time-entries/manual", timeEntryHandler.CreateManual)
 		r.Post("/api/time-entries/{id}/stop", timeEntryHandler.Stop)
+		r.Patch("/api/time-entries/{id}", timeEntryHandler.Update)
 		r.Delete("/api/time-entries/{id}", timeEntryHandler.Delete)
 
 		// Admin-only routes

@@ -23,7 +23,7 @@ export default async function TeamPage() {
     <div className="p-8">
       <div className="max-w-4xl mx-auto">
         <h1 className="text-2xl font-semibold mb-6">Team</h1>
-        <TeamClient members={members} currentUserId={session.user.id} />
+        <TeamClient members={members} currentUserId={session.user.id} accessToken={session.accessToken ?? ""} />
       </div>
     </div>
   );

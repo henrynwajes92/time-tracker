@@ -35,7 +35,7 @@ export default async function EntriesPage() {
     <div className="p-8">
       <div className="max-w-4xl mx-auto">
         <h1 className="text-2xl font-semibold mb-6">Time Entries</h1>
-        <EntriesClient entries={entries} projects={projectsWithTasks} />
+        <EntriesClient entries={entries} projects={projectsWithTasks} accessToken={session.accessToken ?? ""} />
       </div>
     </div>
   );

@@ -7,24 +7,22 @@ import { Project } from "./page";
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8081";
 
-async function fetchWithToken(path: string, options: RequestInit = {}) {
-  const session = await fetch("/api/auth/session").then((r) => r.json());
-  const token = session?.accessToken;
-  return fetch(`${API_URL}${path}`, {
-    ...options,
-    headers: {
-      "Content-Type": "application/json",
-      ...(token ? { Authorization: `Bearer ${token}` } : {}),
-    },
-  });
-}
-
 interface Props {
   projects: Project[];
   isAdmin: boolean;
+  accessToken: string;
 }
 
-export default function ProjectsClient({ projects: initial, isAdmin }: Props) {
+export default function ProjectsClient({ projects: initial, isAdmin, accessToken }: Props) {
+  function fetchWithToken(path: string, options: RequestInit = {}) {
+    return fetch(`${API_URL}${path}`, {
+      ...options,
+      headers: {
+        "Content-Type": "application/json",
+        ...(accessToken ? { Authorization: `Bearer ${accessToken}` } : {}),
+      },
+    });
+  }
   const router = useRouter();
   const [projects, setProjects] = useState(initial);
   const [name, setName] = useState("");

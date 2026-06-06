@@ -22,7 +22,7 @@ export default async function ProjectsPage() {
     <div className="p-8">
       <div className="max-w-4xl mx-auto">
         <h1 className="text-2xl font-semibold mb-6">Projects</h1>
-        <ProjectsClient projects={projects} isAdmin={isAdmin} />
+        <ProjectsClient projects={projects} isAdmin={isAdmin} accessToken={session.accessToken ?? ""} />
       </div>
     </div>
   );

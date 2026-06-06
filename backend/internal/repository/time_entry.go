@@ -140,6 +140,22 @@ func (r *TimeEntryRepository) Report(ctx context.Context, teamID, userID, projec
 	return entries, rows.Err()
 }
 
+func (r *TimeEntryRepository) Update(ctx context.Context, id, userID, taskID, description string, startedAt, endedAt time.Time) (*TimeEntry, error) {
+	duration := int(endedAt.Sub(startedAt).Seconds())
+	e := &TimeEntry{}
+	err := r.db.QueryRowContext(ctx,
+		`UPDATE time_entries
+		 SET task_id=$1, description=$2, started_at=$3, ended_at=$4, duration_seconds=$5
+		 WHERE id=$6 AND user_id=$7 AND ended_at IS NOT NULL
+		 RETURNING id, user_id, task_id, started_at, ended_at, duration_seconds, COALESCE(description,''), created_at`,
+		taskID, description, startedAt, endedAt, duration, id, userID,
+	).Scan(&e.ID, &e.UserID, &e.TaskID, &e.StartedAt, &e.EndedAt, &e.DurationSeconds, &e.Description, &e.CreatedAt)
+	if err != nil {
+		return nil, err
+	}
+	return e, nil
+}
+
 func (r *TimeEntryRepository) Delete(ctx context.Context, id, userID string) error {
 	result, err := r.db.ExecContext(ctx,
 		`DELETE FROM time_entries WHERE id = $1 AND user_id = $2`,

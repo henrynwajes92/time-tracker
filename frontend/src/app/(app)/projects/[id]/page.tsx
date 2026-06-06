@@ -29,7 +29,7 @@ export default async function ProjectDetailPage({ params }: { params: Promise<{ 
   return (
     <div className="p-8">
       <div className="max-w-3xl mx-auto">
-        <ProjectDetailClient project={data.project} tasks={data.tasks} isAdmin={isAdmin} />
+        <ProjectDetailClient project={data.project} tasks={data.tasks} isAdmin={isAdmin} accessToken={session.accessToken ?? ""} />
       </div>
     </div>
   );

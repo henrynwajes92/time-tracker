@@ -31,7 +31,7 @@ export default async function TimerPage() {
     <div className="p-8">
       <div className="max-w-xl mx-auto">
         <h1 className="text-2xl font-semibold mb-8">Timer</h1>
-        <TimerWidget projects={projectsWithTasks} initialActive={activeEntry} />
+        <TimerWidget projects={projectsWithTasks} initialActive={activeEntry} accessToken={session.accessToken ?? ""} />
       </div>
     </div>
   );

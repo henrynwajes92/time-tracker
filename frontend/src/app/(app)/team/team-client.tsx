@@ -13,11 +13,12 @@ interface Member {
 interface Props {
   members: Member[];
   currentUserId: string;
+  accessToken: string;
 }
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8081";
 
-export default function TeamClient({ members: initial, currentUserId }: Props) {
+export default function TeamClient({ members: initial, currentUserId, accessToken }: Props) {
   const router = useRouter();
   const [members, setMembers] = useState(initial);
   const [inviteEmail, setInviteEmail] = useState("");
@@ -25,14 +26,12 @@ export default function TeamClient({ members: initial, currentUserId }: Props) {
   const [inviteLoading, setInviteLoading] = useState(false);
   const [error, setError] = useState("");
 
-  async function fetchWithToken(path: string, options: RequestInit = {}) {
-    const session = await fetch("/api/auth/session").then((r) => r.json());
-    const token = session?.accessToken;
+  function fetchWithToken(path: string, options: RequestInit = {}) {
     return fetch(`${API_URL}${path}`, {
       ...options,
       headers: {
         "Content-Type": "application/json",
-        ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        ...(accessToken ? { Authorization: `Bearer ${accessToken}` } : {}),
         ...options.headers,
       },
     });

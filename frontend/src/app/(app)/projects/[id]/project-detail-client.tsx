@@ -8,25 +8,23 @@ interface Project { id: string; name: string; description: string }
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8081";
 
-async function fetchWithToken(path: string, options: RequestInit = {}) {
-  const session = await fetch("/api/auth/session").then((r) => r.json());
-  const token = session?.accessToken;
-  return fetch(`${API_URL}${path}`, {
-    ...options,
-    headers: {
-      "Content-Type": "application/json",
-      ...(token ? { Authorization: `Bearer ${token}` } : {}),
-    },
-  });
-}
-
 interface Props {
   project: Project;
   tasks: Task[];
   isAdmin: boolean;
+  accessToken: string;
 }
 
-export default function ProjectDetailClient({ project, tasks: initialTasks, isAdmin }: Props) {
+export default function ProjectDetailClient({ project, tasks: initialTasks, isAdmin, accessToken }: Props) {
+  function fetchWithToken(path: string, options: RequestInit = {}) {
+    return fetch(`${API_URL}${path}`, {
+      ...options,
+      headers: {
+        "Content-Type": "application/json",
+        ...(accessToken ? { Authorization: `Bearer ${accessToken}` } : {}),
+      },
+    });
+  }
   const [tasks, setTasks] = useState(initialTasks);
   const [newTaskName, setNewTaskName] = useState("");
   const [adding, setAdding] = useState(false);

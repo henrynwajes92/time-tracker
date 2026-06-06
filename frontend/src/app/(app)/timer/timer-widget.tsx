@@ -11,18 +11,6 @@ interface TimeEntry {
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8081";
 
-async function fetchWithToken(path: string, options: RequestInit = {}) {
-  const session = await fetch("/api/auth/session").then((r) => r.json());
-  const token = session?.accessToken;
-  return fetch(`${API_URL}${path}`, {
-    ...options,
-    headers: {
-      "Content-Type": "application/json",
-      ...(token ? { Authorization: `Bearer ${token}` } : {}),
-    },
-  });
-}
-
 function formatDuration(seconds: number) {
   const h = Math.floor(seconds / 3600);
   const m = Math.floor((seconds % 3600) / 60);
@@ -33,9 +21,19 @@ function formatDuration(seconds: number) {
 interface Props {
   projects: Project[];
   initialActive: TimeEntry | null;
+  accessToken: string;
 }
 
-export default function TimerWidget({ projects, initialActive }: Props) {
+export default function TimerWidget({ projects, initialActive, accessToken }: Props) {
+  function fetchWithToken(path: string, options: RequestInit = {}) {
+    return fetch(`${API_URL}${path}`, {
+      ...options,
+      headers: {
+        "Content-Type": "application/json",
+        ...(accessToken ? { Authorization: `Bearer ${accessToken}` } : {}),
+      },
+    });
+  }
   const [active, setActive] = useState<TimeEntry | null>(initialActive);
   const [elapsed, setElapsed] = useState(() => {
     if (!initialActive) return 0;
