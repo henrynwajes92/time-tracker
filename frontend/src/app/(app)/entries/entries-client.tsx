@@ -84,8 +84,8 @@ export default function EntriesClient({ entries: initial, projects, accessToken 
     });
     setSaving(false);
     if (!res.ok) {
-      const data = await res.json();
-      setFormError(data.error ?? "Failed to log entry.");
+      const data = await res.json().catch(() => ({}));
+      setFormError(data.error ?? `Failed to log entry (${res.status}).`);
       return;
     }
     const entry: TimeEntry = await res.json();
@@ -120,8 +120,8 @@ export default function EntriesClient({ entries: initial, projects, accessToken 
     });
     setEditSaving(false);
     if (!res.ok) {
-      const data = await res.json();
-      setEditError(data.error ?? "Update failed.");
+      const data = await res.json().catch(() => ({}));
+      setEditError(data.error ?? `Update failed (${res.status}).`);
       return;
     }
     const updated: TimeEntry = await res.json();

@@ -51,7 +51,8 @@ export default function TeamClient({ members: initial, currentUserId, accessToke
     setInviteLoading(false);
 
     if (!res.ok) {
-      setError("Failed to create invite.");
+      const data = await res.json().catch(() => ({}));
+      setError(data.error ?? `Failed to create invite (${res.status}).`);
       return;
     }
 
