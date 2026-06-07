@@ -1,10 +1,18 @@
 "use client";
 
 import { useState } from "react";
-import { TimeEntry } from "./page";
 
-interface Task { id: string; name: string; projectId: string }
-interface Project { id: string; name: string; tasks: Task[] }
+interface Project { id: string; name: string }
+
+export interface TimeEntry {
+  id: string;
+  projectId?: string;
+  projectName?: string;
+  startedAt: string;
+  endedAt?: string;
+  durationSeconds?: number;
+  description: string;
+}
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8081";
 
@@ -36,28 +44,23 @@ interface Props {
 export default function EntriesClient({ entries: initial, projects, accessToken }: Props) {
   const [entries, setEntries] = useState(initial);
 
-  // --- New entry form state ---
+  // New entry form
   const [showForm, setShowForm] = useState(false);
   const [newProject, setNewProject] = useState("");
-  const [newTask, setNewTask] = useState("");
   const [newDesc, setNewDesc] = useState("");
   const [newStart, setNewStart] = useState(() => toLocalNow(-3600000));
   const [newEnd, setNewEnd] = useState(() => toLocalNow());
   const [saving, setSaving] = useState(false);
   const [formError, setFormError] = useState("");
 
-  // --- Edit state ---
+  // Edit state
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editProject, setEditProject] = useState("");
-  const [editTask, setEditTask] = useState("");
   const [editDesc, setEditDesc] = useState("");
   const [editStart, setEditStart] = useState("");
   const [editEnd, setEditEnd] = useState("");
   const [editSaving, setEditSaving] = useState(false);
   const [editError, setEditError] = useState("");
-
-  const newTasks = projects.find((p) => p.id === newProject)?.tasks ?? [];
-  const editTasks = projects.find((p) => p.id === editProject)?.tasks ?? [];
 
   function apiFetch(path: string, options: RequestInit = {}) {
     return fetch(`${API_URL}${path}`, {
@@ -76,7 +79,7 @@ export default function EntriesClient({ entries: initial, projects, accessToken 
     const res = await apiFetch("/api/time-entries/manual", {
       method: "POST",
       body: JSON.stringify({
-        taskId: newTask,
+        projectId: newProject,
         description: newDesc,
         startedAt: new Date(newStart).toISOString(),
         endedAt: new Date(newEnd).toISOString(),
@@ -91,17 +94,16 @@ export default function EntriesClient({ entries: initial, projects, accessToken 
     const entry: TimeEntry = await res.json();
     setEntries((prev) => [entry, ...prev]);
     setShowForm(false);
-    setNewProject(""); setNewTask(""); setNewDesc("");
+    setNewProject("");
+    setNewDesc("");
   }
 
   function startEdit(entry: TimeEntry) {
     setEditingId(entry.id);
     setEditDesc(entry.description ?? "");
+    setEditProject(entry.projectId ?? "");
     setEditStart(entry.startedAt ? toLocalDateTimeInput(entry.startedAt) : "");
     setEditEnd(entry.endedAt ? toLocalDateTimeInput(entry.endedAt) : "");
-    const proj = projects.find((p) => p.tasks.some((t) => t.id === entry.taskId));
-    setEditProject(proj?.id ?? "");
-    setEditTask(entry.taskId);
     setEditError("");
   }
 
@@ -111,7 +113,7 @@ export default function EntriesClient({ entries: initial, projects, accessToken 
     const res = await apiFetch(`/api/time-entries/${entryId}`, {
       method: "PATCH",
       body: JSON.stringify({
-        taskId: editTask,
+        projectId: editProject,
         description: editDesc,
         startedAt: new Date(editStart).toISOString(),
         endedAt: new Date(editEnd).toISOString(),
@@ -136,41 +138,38 @@ export default function EntriesClient({ entries: initial, projects, accessToken 
 
   const inputCls = "w-full border rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500";
 
-  // Shared edit form fields (used in both mobile card and desktop table row)
-  function EditFields() {
+  function EditForm({ entryId }: { entryId: string }) {
     return (
       <div className="space-y-3">
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-          <div>
-            <label className="block text-xs font-medium mb-1 text-gray-600">Project</label>
-            <select value={editProject} onChange={(ev) => { setEditProject(ev.target.value); setEditTask(""); }} className={inputCls}>
-              <option value="">Select project…</option>
-              {projects.map((p) => <option key={p.id} value={p.id}>{p.name}</option>)}
-            </select>
-          </div>
-          <div>
-            <label className="block text-xs font-medium mb-1 text-gray-600">Task</label>
-            <select value={editTask} onChange={(ev) => setEditTask(ev.target.value)} disabled={!editProject} className={`${inputCls} disabled:bg-gray-50`}>
-              <option value="">Select task…</option>
-              {editTasks.map((t) => <option key={t.id} value={t.id}>{t.name}</option>)}
-            </select>
-          </div>
+        <div>
+          <label className="block text-xs font-medium mb-1 text-gray-600">Description</label>
+          <input value={editDesc} onChange={(e) => setEditDesc(e.target.value)} placeholder="What did you work on?" className={inputCls} />
+        </div>
+        <div>
+          <label className="block text-xs font-medium mb-1 text-gray-600">Project</label>
+          <select value={editProject} onChange={(e) => setEditProject(e.target.value)} required className={inputCls}>
+            <option value="">Select project…</option>
+            {projects.map((p) => <option key={p.id} value={p.id}>{p.name}</option>)}
+          </select>
         </div>
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
           <div>
             <label className="block text-xs font-medium mb-1 text-gray-600">Start time</label>
-            <input type="datetime-local" value={editStart} onChange={(ev) => setEditStart(ev.target.value)} className={inputCls} />
+            <input type="datetime-local" value={editStart} onChange={(e) => setEditStart(e.target.value)} className={inputCls} />
           </div>
           <div>
             <label className="block text-xs font-medium mb-1 text-gray-600">End time</label>
-            <input type="datetime-local" value={editEnd} onChange={(ev) => setEditEnd(ev.target.value)} className={inputCls} />
+            <input type="datetime-local" value={editEnd} onChange={(e) => setEditEnd(e.target.value)} className={inputCls} />
           </div>
         </div>
-        <div>
-          <label className="block text-xs font-medium mb-1 text-gray-600">Description</label>
-          <input value={editDesc} onChange={(ev) => setEditDesc(ev.target.value)} placeholder="Description" className={inputCls} />
-        </div>
         {editError && <p className="text-sm text-red-600">{editError}</p>}
+        <div className="flex gap-2">
+          <button onClick={() => handleUpdate(entryId)} disabled={editSaving}
+            className="bg-blue-600 text-white px-4 py-1.5 rounded text-sm hover:bg-blue-700 disabled:opacity-50">
+            {editSaving ? "Saving…" : "Save changes"}
+          </button>
+          <button onClick={() => setEditingId(null)} className="px-4 py-1.5 border rounded text-sm hover:bg-gray-50">Cancel</button>
+        </div>
       </div>
     );
   }
@@ -191,21 +190,12 @@ export default function EntriesClient({ entries: initial, projects, accessToken 
         <div className="bg-white rounded-xl border shadow-sm p-4 sm:p-6">
           <h2 className="font-medium mb-4">Log time entry</h2>
           <form onSubmit={handleCreate} className="space-y-4">
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              <div>
-                <label className="block text-sm font-medium mb-1">Project</label>
-                <select value={newProject} onChange={(e) => { setNewProject(e.target.value); setNewTask(""); }} required className={inputCls}>
-                  <option value="">Select project…</option>
-                  {projects.map((p) => <option key={p.id} value={p.id}>{p.name}</option>)}
-                </select>
-              </div>
-              <div>
-                <label className="block text-sm font-medium mb-1">Task</label>
-                <select value={newTask} onChange={(e) => setNewTask(e.target.value)} required disabled={!newProject} className={`${inputCls} disabled:bg-gray-50`}>
-                  <option value="">Select task…</option>
-                  {newTasks.map((t) => <option key={t.id} value={t.id}>{t.name}</option>)}
-                </select>
-              </div>
+            <div>
+              <label className="block text-sm font-medium mb-1">Project</label>
+              <select value={newProject} onChange={(e) => setNewProject(e.target.value)} required className={inputCls}>
+                <option value="">Select project…</option>
+                {projects.map((p) => <option key={p.id} value={p.id}>{p.name}</option>)}
+              </select>
             </div>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div>
@@ -241,13 +231,7 @@ export default function EntriesClient({ entries: initial, projects, accessToken 
             {entries.map((e) =>
               editingId === e.id ? (
                 <div key={e.id} className="bg-blue-50 rounded-xl border p-4">
-                  <EditFields />
-                  <div className="flex gap-2 mt-3">
-                    <button onClick={() => handleUpdate(e.id)} disabled={editSaving} className="bg-blue-600 text-white px-4 py-1.5 rounded text-sm hover:bg-blue-700 disabled:opacity-50">
-                      {editSaving ? "Saving…" : "Save changes"}
-                    </button>
-                    <button onClick={() => setEditingId(null)} className="px-4 py-1.5 border rounded text-sm hover:bg-gray-50">Cancel</button>
-                  </div>
+                  <EditForm entryId={e.id} />
                 </div>
               ) : (
                 <div key={e.id} className="bg-white rounded-xl border shadow-sm p-4">
@@ -256,6 +240,7 @@ export default function EntriesClient({ entries: initial, projects, accessToken 
                       <p className="text-sm font-medium">
                         {e.description || <span className="text-gray-400">No description</span>}
                       </p>
+                      {e.projectName && <p className="text-xs text-blue-600 mt-0.5">● {e.projectName}</p>}
                       <p className="text-xs text-gray-500 mt-0.5">
                         {new Date(e.startedAt).toLocaleDateString()} ·{" "}
                         {new Date(e.startedAt).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
@@ -281,6 +266,7 @@ export default function EntriesClient({ entries: initial, projects, accessToken 
                 <tr>
                   <th className="text-left px-6 py-3 font-medium text-gray-500">Date</th>
                   <th className="text-left px-6 py-3 font-medium text-gray-500">Description</th>
+                  <th className="text-left px-6 py-3 font-medium text-gray-500">Project</th>
                   <th className="text-left px-6 py-3 font-medium text-gray-500">Duration</th>
                   <th className="px-6 py-3" />
                 </tr>
@@ -289,23 +275,25 @@ export default function EntriesClient({ entries: initial, projects, accessToken 
                 {entries.map((e) =>
                   editingId === e.id ? (
                     <tr key={e.id} className="bg-blue-50">
-                      <td colSpan={4} className="px-6 py-4">
-                        <EditFields />
-                        <div className="flex gap-2 mt-3">
-                          <button onClick={() => handleUpdate(e.id)} disabled={editSaving} className="bg-blue-600 text-white px-4 py-1.5 rounded text-sm hover:bg-blue-700 disabled:opacity-50">
-                            {editSaving ? "Saving…" : "Save changes"}
-                          </button>
-                          <button onClick={() => setEditingId(null)} className="px-4 py-1.5 border rounded text-sm hover:bg-gray-50">Cancel</button>
-                        </div>
+                      <td colSpan={5} className="px-6 py-4">
+                        <EditForm entryId={e.id} />
                       </td>
                     </tr>
                   ) : (
                     <tr key={e.id} className="hover:bg-gray-50">
                       <td className="px-6 py-4 text-gray-600 whitespace-nowrap">
-                        {new Date(e.startedAt).toLocaleDateString()} {new Date(e.startedAt).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
+                        {new Date(e.startedAt).toLocaleDateString()}{" "}
+                        {new Date(e.startedAt).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
                       </td>
-                      <td className="px-6 py-4 text-gray-700">{e.description || <span className="text-gray-400">—</span>}</td>
-                      <td className="px-6 py-4 font-mono">{e.durationSeconds != null ? formatDuration(e.durationSeconds) : "—"}</td>
+                      <td className="px-6 py-4 text-gray-700">
+                        {e.description || <span className="text-gray-400">—</span>}
+                      </td>
+                      <td className="px-6 py-4 text-blue-600 text-xs font-medium">
+                        {e.projectName ?? "—"}
+                      </td>
+                      <td className="px-6 py-4 font-mono">
+                        {e.durationSeconds != null ? formatDuration(e.durationSeconds) : "—"}
+                      </td>
                       <td className="px-6 py-4 text-right space-x-3">
                         <button onClick={() => startEdit(e)} className="text-blue-600 hover:underline text-sm">Edit</button>
                         <button onClick={() => handleDelete(e.id)} className="text-red-600 hover:underline text-sm">Delete</button>

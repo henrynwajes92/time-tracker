@@ -29,7 +29,7 @@ func (s *TimeEntryService) GetActive(ctx context.Context, userID string) (*repos
 	return entry, err
 }
 
-func (s *TimeEntryService) Start(ctx context.Context, userID, taskID, description string) (*repository.TimeEntry, error) {
+func (s *TimeEntryService) Start(ctx context.Context, userID, projectID, description string) (*repository.TimeEntry, error) {
 	existing, err := s.repo.FindActive(ctx, userID)
 	if err != nil && !errors.Is(err, sql.ErrNoRows) {
 		return nil, err
@@ -37,7 +37,7 @@ func (s *TimeEntryService) Start(ctx context.Context, userID, taskID, descriptio
 	if existing != nil {
 		return nil, ErrActiveTimerExists
 	}
-	return s.repo.Start(ctx, userID, taskID, description)
+	return s.repo.Start(ctx, userID, projectID, description)
 }
 
 func (s *TimeEntryService) Stop(ctx context.Context, id, userID string) (*repository.TimeEntry, error) {
@@ -48,7 +48,7 @@ func (s *TimeEntryService) Stop(ctx context.Context, id, userID string) (*reposi
 	return entry, err
 }
 
-func (s *TimeEntryService) CreateManual(ctx context.Context, userID, taskID, description string, startedAt, endedAt string) (*repository.TimeEntry, error) {
+func (s *TimeEntryService) CreateManual(ctx context.Context, userID, projectID, description string, startedAt, endedAt string) (*repository.TimeEntry, error) {
 	start, err := time.Parse(time.RFC3339, startedAt)
 	if err != nil {
 		return nil, errors.New("invalid startedAt format (use RFC3339)")
@@ -60,10 +60,10 @@ func (s *TimeEntryService) CreateManual(ctx context.Context, userID, taskID, des
 	if !end.After(start) {
 		return nil, errors.New("endedAt must be after startedAt")
 	}
-	return s.repo.CreateManual(ctx, userID, taskID, description, start, end)
+	return s.repo.CreateManual(ctx, userID, projectID, description, start, end)
 }
 
-func (s *TimeEntryService) UpdateEntry(ctx context.Context, id, userID, taskID, description, startedAt, endedAt string) (*repository.TimeEntry, error) {
+func (s *TimeEntryService) UpdateEntry(ctx context.Context, id, userID, projectID, description, startedAt, endedAt string) (*repository.TimeEntry, error) {
 	start, err := time.Parse(time.RFC3339, startedAt)
 	if err != nil {
 		return nil, errors.New("invalid startedAt format (use RFC3339)")
@@ -75,7 +75,7 @@ func (s *TimeEntryService) UpdateEntry(ctx context.Context, id, userID, taskID, 
 	if !end.After(start) {
 		return nil, errors.New("endedAt must be after startedAt")
 	}
-	entry, err := s.repo.Update(ctx, id, userID, taskID, description, start, end)
+	entry, err := s.repo.Update(ctx, id, userID, projectID, description, start, end)
 	if errors.Is(err, sql.ErrNoRows) {
 		return nil, ErrEntryNotFound
 	}

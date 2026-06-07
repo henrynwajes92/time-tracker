@@ -2,11 +2,10 @@
 
 import { useEffect, useRef, useState } from "react";
 
-interface Task { id: string; name: string; projectId: string }
-interface Project { id: string; name: string; tasks: Task[] }
+interface Project { id: string; name: string }
 interface TimeEntry {
-  id: string; taskId: string; startedAt: string;
-  endedAt?: string; durationSeconds?: number; description: string;
+  id: string; projectId?: string; projectName: string;
+  startedAt: string; endedAt?: string; durationSeconds?: number; description: string;
 }
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8081";
@@ -40,13 +39,10 @@ export default function TimerWidget({ projects, initialActive, accessToken }: Pr
     return Math.floor((Date.now() - new Date(initialActive.startedAt).getTime()) / 1000);
   });
   const [selectedProject, setSelectedProject] = useState("");
-  const [selectedTask, setSelectedTask] = useState("");
   const [description, setDescription] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
-
-  const availableTasks = projects.find((p) => p.id === selectedProject)?.tasks ?? [];
 
   useEffect(() => {
     if (active) {
@@ -58,19 +54,19 @@ export default function TimerWidget({ projects, initialActive, accessToken }: Pr
   }, [active]);
 
   async function handleStart() {
-    if (!selectedTask) { setError("Select a project and task first."); return; }
+    if (!selectedProject) { setError("Select a project first."); return; }
     setLoading(true);
     setError("");
 
     const res = await fetchWithToken("/api/time-entries", {
       method: "POST",
-      body: JSON.stringify({ taskId: selectedTask, description }),
+      body: JSON.stringify({ projectId: selectedProject, description }),
     });
 
     setLoading(false);
 
     if (!res.ok) {
-      const data = await res.json();
+      const data = await res.json().catch(() => ({}));
       setError(data.error ?? "Failed to start timer.");
       return;
     }
@@ -99,7 +95,6 @@ export default function TimerWidget({ projects, initialActive, accessToken }: Pr
     setActive(null);
     setElapsed(0);
     setSelectedProject("");
-    setSelectedTask("");
     setDescription("");
   }
 
@@ -111,18 +106,19 @@ export default function TimerWidget({ projects, initialActive, accessToken }: Pr
           {formatDuration(elapsed)}
         </div>
         {active && (
-          <p className="text-sm text-gray-500 mt-2">Timer running…</p>
+          <p className="text-sm text-gray-500 mt-2">
+            Timer running on <span className="font-medium">{active.projectName}</span>
+          </p>
         )}
       </div>
 
       {!active ? (
-        /* Setup form */
         <div className="space-y-4">
           <div>
             <label className="block text-sm font-medium mb-1">Project</label>
             <select
               value={selectedProject}
-              onChange={(e) => { setSelectedProject(e.target.value); setSelectedTask(""); }}
+              onChange={(e) => setSelectedProject(e.target.value)}
               className="w-full border rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
             >
               <option value="">Select a project…</option>
@@ -133,22 +129,9 @@ export default function TimerWidget({ projects, initialActive, accessToken }: Pr
           </div>
 
           <div>
-            <label className="block text-sm font-medium mb-1">Task</label>
-            <select
-              value={selectedTask}
-              onChange={(e) => setSelectedTask(e.target.value)}
-              disabled={!selectedProject}
-              className="w-full border rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:bg-gray-50 disabled:text-gray-400"
-            >
-              <option value="">Select a task…</option>
-              {availableTasks.map((t) => (
-                <option key={t.id} value={t.id}>{t.name}</option>
-              ))}
-            </select>
-          </div>
-
-          <div>
-            <label className="block text-sm font-medium mb-1">Description <span className="text-gray-400 font-normal">(optional)</span></label>
+            <label className="block text-sm font-medium mb-1">
+              Description <span className="text-gray-400 font-normal">(optional)</span>
+            </label>
             <input
               value={description}
               onChange={(e) => setDescription(e.target.value)}
@@ -161,14 +144,13 @@ export default function TimerWidget({ projects, initialActive, accessToken }: Pr
 
           <button
             onClick={handleStart}
-            disabled={loading || !selectedTask}
+            disabled={loading || !selectedProject}
             className="w-full bg-blue-600 text-white py-3 rounded-lg font-medium hover:bg-blue-700 disabled:opacity-50 transition-colors"
           >
             {loading ? "Starting…" : "Start timer"}
           </button>
         </div>
       ) : (
-        /* Running state */
         <div className="space-y-4">
           <div className="bg-gray-50 rounded-lg px-4 py-3 text-sm text-gray-600">
             <p>Started at {new Date(active.startedAt).toLocaleTimeString()}</p>

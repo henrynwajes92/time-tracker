@@ -24,7 +24,6 @@ func (h *TimeEntryHandler) Report(w http.ResponseWriter, r *http.Request) {
 	claims, _ := middleware.GetClaims(r)
 	q := r.URL.Query()
 
-	// Members can only see their own data
 	userID := q.Get("userId")
 	if claims.Role != "ADMIN" {
 		userID = claims.ID
@@ -39,12 +38,12 @@ func (h *TimeEntryHandler) Report(w http.ResponseWriter, r *http.Request) {
 	if q.Get("format") == "csv" {
 		w.Header().Set("Content-Type", "text/csv")
 		w.Header().Set("Content-Disposition", "attachment; filename=time-report.csv")
-		fmt.Fprintln(w, "Date,User,Project,Task,Description,Hours")
+		fmt.Fprintln(w, "Date,User,Project,Description,Hours")
 		for _, e := range entries {
 			hours := float64(e.DurationSeconds) / 3600
-			fmt.Fprintf(w, "%s,%s,%s,%s,%q,%.2f\n",
+			fmt.Fprintf(w, "%s,%s,%s,%q,%.2f\n",
 				e.StartedAt.Format("2006-01-02"),
-				e.UserName, e.ProjectName, e.TaskName,
+				e.UserName, e.ProjectName,
 				e.Description, hours,
 			)
 		}
@@ -105,15 +104,15 @@ func (h *TimeEntryHandler) Start(w http.ResponseWriter, r *http.Request) {
 	claims, _ := middleware.GetClaims(r)
 
 	var req struct {
-		TaskID      string `json:"taskId"`
+		ProjectID   string `json:"projectId"`
 		Description string `json:"description"`
 	}
-	if err := json.NewDecoder(r.Body).Decode(&req); err != nil || req.TaskID == "" {
-		writeJSON(w, http.StatusBadRequest, map[string]string{"error": "taskId is required"})
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil || req.ProjectID == "" {
+		writeJSON(w, http.StatusBadRequest, map[string]string{"error": "projectId is required"})
 		return
 	}
 
-	entry, err := h.svc.Start(r.Context(), claims.ID, req.TaskID, req.Description)
+	entry, err := h.svc.Start(r.Context(), claims.ID, req.ProjectID, req.Description)
 	if errors.Is(err, service.ErrActiveTimerExists) {
 		writeJSON(w, http.StatusConflict, map[string]string{"error": "a timer is already running"})
 		return
@@ -147,7 +146,7 @@ func (h *TimeEntryHandler) CreateManual(w http.ResponseWriter, r *http.Request) 
 	claims, _ := middleware.GetClaims(r)
 
 	var req struct {
-		TaskID      string `json:"taskId"`
+		ProjectID   string `json:"projectId"`
 		Description string `json:"description"`
 		StartedAt   string `json:"startedAt"`
 		EndedAt     string `json:"endedAt"`
@@ -156,12 +155,12 @@ func (h *TimeEntryHandler) CreateManual(w http.ResponseWriter, r *http.Request) 
 		writeJSON(w, http.StatusBadRequest, map[string]string{"error": "invalid request body"})
 		return
 	}
-	if req.TaskID == "" || req.StartedAt == "" || req.EndedAt == "" {
-		writeJSON(w, http.StatusBadRequest, map[string]string{"error": "taskId, startedAt and endedAt are required"})
+	if req.ProjectID == "" || req.StartedAt == "" || req.EndedAt == "" {
+		writeJSON(w, http.StatusBadRequest, map[string]string{"error": "projectId, startedAt and endedAt are required"})
 		return
 	}
 
-	entry, err := h.svc.CreateManual(r.Context(), claims.ID, req.TaskID, req.Description, req.StartedAt, req.EndedAt)
+	entry, err := h.svc.CreateManual(r.Context(), claims.ID, req.ProjectID, req.Description, req.StartedAt, req.EndedAt)
 	if err != nil {
 		writeJSON(w, http.StatusBadRequest, map[string]string{"error": err.Error()})
 		return
@@ -175,7 +174,7 @@ func (h *TimeEntryHandler) Update(w http.ResponseWriter, r *http.Request) {
 	id := chi.URLParam(r, "id")
 
 	var req struct {
-		TaskID      string `json:"taskId"`
+		ProjectID   string `json:"projectId"`
 		Description string `json:"description"`
 		StartedAt   string `json:"startedAt"`
 		EndedAt     string `json:"endedAt"`
@@ -184,12 +183,12 @@ func (h *TimeEntryHandler) Update(w http.ResponseWriter, r *http.Request) {
 		writeJSON(w, http.StatusBadRequest, map[string]string{"error": "invalid request body"})
 		return
 	}
-	if req.TaskID == "" || req.StartedAt == "" || req.EndedAt == "" {
-		writeJSON(w, http.StatusBadRequest, map[string]string{"error": "taskId, startedAt and endedAt are required"})
+	if req.ProjectID == "" || req.StartedAt == "" || req.EndedAt == "" {
+		writeJSON(w, http.StatusBadRequest, map[string]string{"error": "projectId, startedAt and endedAt are required"})
 		return
 	}
 
-	entry, err := h.svc.UpdateEntry(r.Context(), id, claims.ID, req.TaskID, req.Description, req.StartedAt, req.EndedAt)
+	entry, err := h.svc.UpdateEntry(r.Context(), id, claims.ID, req.ProjectID, req.Description, req.StartedAt, req.EndedAt)
 	if errors.Is(err, service.ErrEntryNotFound) {
 		writeJSON(w, http.StatusNotFound, map[string]string{"error": "entry not found"})
 		return
@@ -220,7 +219,7 @@ func (h *TimeEntryHandler) Delete(w http.ResponseWriter, r *http.Request) {
 // GET /api/time-entries
 func (h *TimeEntryHandler) List(w http.ResponseWriter, r *http.Request) {
 	claims, _ := middleware.GetClaims(r)
-	entries, err := h.svc.ListRecent(r.Context(), claims.ID, 50)
+	entries, err := h.svc.ListRecent(r.Context(), claims.ID, 200)
 	if err != nil {
 		writeJSON(w, http.StatusInternalServerError, map[string]string{"error": "could not list entries"})
 		return
