@@ -1,6 +1,12 @@
 "use client";
 
 import { useState } from "react";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { NativeSelect } from "@/components/ui/native-select";
+import { useTimezone } from "@/hooks/use-timezone";
+import { formatDate, formatTime, toLocalInputValue, fromLocalInputValue } from "@/lib/format-date";
 
 interface Project { id: string; name: string }
 
@@ -25,14 +31,8 @@ function formatDuration(seconds: number) {
   return `${s}s`;
 }
 
-function toLocalDateTimeInput(iso: string) {
-  const d = new Date(iso);
-  const pad = (n: number) => String(n).padStart(2, "0");
-  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
-}
-
-function toLocalNow(offsetMs = 0) {
-  return toLocalDateTimeInput(new Date(Date.now() + offsetMs).toISOString());
+function nowLocalInput(timezone: string, offsetMs = 0) {
+  return toLocalInputValue(new Date(Date.now() + offsetMs).toISOString(), timezone);
 }
 
 interface Props {
@@ -42,18 +42,17 @@ interface Props {
 }
 
 export default function EntriesClient({ entries: initial, projects, accessToken }: Props) {
+  const { timezone } = useTimezone();
   const [entries, setEntries] = useState(initial);
 
-  // New entry form
   const [showForm, setShowForm] = useState(false);
   const [newProject, setNewProject] = useState("");
   const [newDesc, setNewDesc] = useState("");
-  const [newStart, setNewStart] = useState(() => toLocalNow(-3600000));
-  const [newEnd, setNewEnd] = useState(() => toLocalNow());
+  const [newStart, setNewStart] = useState(() => nowLocalInput("UTC", -3600000));
+  const [newEnd, setNewEnd] = useState(() => nowLocalInput("UTC"));
   const [saving, setSaving] = useState(false);
   const [formError, setFormError] = useState("");
 
-  // Edit state
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editProject, setEditProject] = useState("");
   const [editDesc, setEditDesc] = useState("");
@@ -72,6 +71,12 @@ export default function EntriesClient({ entries: initial, projects, accessToken 
     });
   }
 
+  function openForm() {
+    setNewStart(nowLocalInput(timezone, -3600000));
+    setNewEnd(nowLocalInput(timezone));
+    setShowForm(true);
+  }
+
   async function handleCreate(e: React.FormEvent) {
     e.preventDefault();
     setSaving(true);
@@ -81,8 +86,8 @@ export default function EntriesClient({ entries: initial, projects, accessToken 
       body: JSON.stringify({
         projectId: newProject,
         description: newDesc,
-        startedAt: new Date(newStart).toISOString(),
-        endedAt: new Date(newEnd).toISOString(),
+        startedAt: fromLocalInputValue(newStart, timezone),
+        endedAt: fromLocalInputValue(newEnd, timezone),
       }),
     });
     setSaving(false);
@@ -102,8 +107,8 @@ export default function EntriesClient({ entries: initial, projects, accessToken 
     setEditingId(entry.id);
     setEditDesc(entry.description ?? "");
     setEditProject(entry.projectId ?? "");
-    setEditStart(entry.startedAt ? toLocalDateTimeInput(entry.startedAt) : "");
-    setEditEnd(entry.endedAt ? toLocalDateTimeInput(entry.endedAt) : "");
+    setEditStart(entry.startedAt ? toLocalInputValue(entry.startedAt, timezone) : "");
+    setEditEnd(entry.endedAt ? toLocalInputValue(entry.endedAt, timezone) : "");
     setEditError("");
   }
 
@@ -115,8 +120,8 @@ export default function EntriesClient({ entries: initial, projects, accessToken 
       body: JSON.stringify({
         projectId: editProject,
         description: editDesc,
-        startedAt: new Date(editStart).toISOString(),
-        endedAt: new Date(editEnd).toISOString(),
+        startedAt: fromLocalInputValue(editStart, timezone),
+        endedAt: fromLocalInputValue(editEnd, timezone),
       }),
     });
     setEditSaving(false);
@@ -136,39 +141,36 @@ export default function EntriesClient({ entries: initial, projects, accessToken 
     if (res.ok) setEntries((prev) => prev.filter((e) => e.id !== id));
   }
 
-  const inputCls = "w-full border rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500";
-
   function EditForm({ entryId }: { entryId: string }) {
     return (
       <div className="space-y-3">
-        <div>
-          <label className="block text-xs font-medium mb-1 text-gray-600">Description</label>
-          <input value={editDesc} onChange={(e) => setEditDesc(e.target.value)} placeholder="What did you work on?" className={inputCls} />
+        <div className="space-y-1.5">
+          <Label>Description</Label>
+          <Input value={editDesc} onChange={(e) => setEditDesc(e.target.value)} placeholder="What did you work on?" className="h-9" />
         </div>
-        <div>
-          <label className="block text-xs font-medium mb-1 text-gray-600">Project</label>
-          <select value={editProject} onChange={(e) => setEditProject(e.target.value)} required className={inputCls}>
+        <div className="space-y-1.5">
+          <Label>Project</Label>
+          <NativeSelect value={editProject} onChange={(e) => setEditProject(e.target.value)} className="h-9">
             <option value="">Select project…</option>
             {projects.map((p) => <option key={p.id} value={p.id}>{p.name}</option>)}
-          </select>
+          </NativeSelect>
         </div>
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-          <div>
-            <label className="block text-xs font-medium mb-1 text-gray-600">Start time</label>
-            <input type="datetime-local" value={editStart} onChange={(e) => setEditStart(e.target.value)} className={inputCls} />
+          <div className="space-y-1.5">
+            <Label>Start time</Label>
+            <Input type="datetime-local" value={editStart} onChange={(e) => setEditStart(e.target.value)} className="h-9" />
           </div>
-          <div>
-            <label className="block text-xs font-medium mb-1 text-gray-600">End time</label>
-            <input type="datetime-local" value={editEnd} onChange={(e) => setEditEnd(e.target.value)} className={inputCls} />
+          <div className="space-y-1.5">
+            <Label>End time</Label>
+            <Input type="datetime-local" value={editEnd} onChange={(e) => setEditEnd(e.target.value)} className="h-9" />
           </div>
         </div>
         {editError && <p className="text-sm text-red-600">{editError}</p>}
         <div className="flex gap-2">
-          <button onClick={() => handleUpdate(entryId)} disabled={editSaving}
-            className="bg-blue-600 text-white px-4 py-1.5 rounded text-sm hover:bg-blue-700 disabled:opacity-50">
+          <Button onClick={() => handleUpdate(entryId)} disabled={editSaving} size="sm">
             {editSaving ? "Saving…" : "Save changes"}
-          </button>
-          <button onClick={() => setEditingId(null)} className="px-4 py-1.5 border rounded text-sm hover:bg-gray-50">Cancel</button>
+          </Button>
+          <Button onClick={() => setEditingId(null)} variant="outline" size="sm">Cancel</Button>
         </div>
       </div>
     );
@@ -177,12 +179,9 @@ export default function EntriesClient({ entries: initial, projects, accessToken 
   return (
     <div className="space-y-6">
       <div className="flex justify-end">
-        <button
-          onClick={() => setShowForm(!showForm)}
-          className="bg-blue-600 text-white px-4 py-2 rounded-md text-sm font-medium hover:bg-blue-700"
-        >
+        <Button onClick={() => (showForm ? setShowForm(false) : openForm())} variant={showForm ? "outline" : "default"}>
           {showForm ? "Cancel" : "Log time manually"}
-        </button>
+        </Button>
       </div>
 
       {/* Create form */}
@@ -190,33 +189,33 @@ export default function EntriesClient({ entries: initial, projects, accessToken 
         <div className="bg-white rounded-xl border shadow-sm p-4 sm:p-6">
           <h2 className="font-medium mb-4">Log time entry</h2>
           <form onSubmit={handleCreate} className="space-y-4">
-            <div>
-              <label className="block text-sm font-medium mb-1">Project</label>
-              <select value={newProject} onChange={(e) => setNewProject(e.target.value)} required className={inputCls}>
+            <div className="space-y-1.5">
+              <Label>Project</Label>
+              <NativeSelect value={newProject} onChange={(e) => setNewProject(e.target.value)} required className="h-9">
                 <option value="">Select project…</option>
                 {projects.map((p) => <option key={p.id} value={p.id}>{p.name}</option>)}
-              </select>
+              </NativeSelect>
             </div>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              <div>
-                <label className="block text-sm font-medium mb-1">Start time</label>
-                <input type="datetime-local" value={newStart} onChange={(e) => setNewStart(e.target.value)} required className={inputCls} />
+              <div className="space-y-1.5">
+                <Label>Start time</Label>
+                <Input type="datetime-local" value={newStart} onChange={(e) => setNewStart(e.target.value)} required className="h-9" />
               </div>
-              <div>
-                <label className="block text-sm font-medium mb-1">End time</label>
-                <input type="datetime-local" value={newEnd} onChange={(e) => setNewEnd(e.target.value)} required className={inputCls} />
+              <div className="space-y-1.5">
+                <Label>End time</Label>
+                <Input type="datetime-local" value={newEnd} onChange={(e) => setNewEnd(e.target.value)} required className="h-9" />
               </div>
             </div>
-            <div>
-              <label className="block text-sm font-medium mb-1">Description <span className="text-gray-400 font-normal">(optional)</span></label>
-              <input value={newDesc} onChange={(e) => setNewDesc(e.target.value)} placeholder="What did you work on?" className={inputCls} />
+            <div className="space-y-1.5">
+              <Label>Description <span className="text-muted-foreground font-normal">(optional)</span></Label>
+              <Input value={newDesc} onChange={(e) => setNewDesc(e.target.value)} placeholder="What did you work on?" className="h-9" />
             </div>
             {formError && <p className="text-sm text-red-600">{formError}</p>}
             <div className="flex justify-end gap-2">
-              <button type="button" onClick={() => setShowForm(false)} className="px-4 py-2 border rounded-md text-sm hover:bg-gray-50">Cancel</button>
-              <button type="submit" disabled={saving} className="bg-blue-600 text-white px-4 py-2 rounded-md text-sm hover:bg-blue-700 disabled:opacity-50">
+              <Button type="button" onClick={() => setShowForm(false)} variant="outline" size="sm">Cancel</Button>
+              <Button type="submit" disabled={saving} size="sm">
                 {saving ? "Saving…" : "Save entry"}
-              </button>
+              </Button>
             </div>
           </form>
         </div>
@@ -242,8 +241,7 @@ export default function EntriesClient({ entries: initial, projects, accessToken 
                       </p>
                       {e.projectName && <p className="text-xs text-blue-600 mt-0.5">● {e.projectName}</p>}
                       <p className="text-xs text-gray-500 mt-0.5">
-                        {new Date(e.startedAt).toLocaleDateString()} ·{" "}
-                        {new Date(e.startedAt).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
+                        {formatDate(e.startedAt, timezone)} · {formatTime(e.startedAt, timezone)}
                       </p>
                     </div>
                     <span className="text-sm font-mono text-gray-600 shrink-0">
@@ -251,8 +249,8 @@ export default function EntriesClient({ entries: initial, projects, accessToken 
                     </span>
                   </div>
                   <div className="flex gap-4 mt-3 pt-3 border-t">
-                    <button onClick={() => startEdit(e)} className="text-blue-600 text-sm hover:underline">Edit</button>
-                    <button onClick={() => handleDelete(e.id)} className="text-red-600 text-sm hover:underline">Delete</button>
+                    <Button onClick={() => startEdit(e)} variant="ghost" size="xs" className="text-blue-600">Edit</Button>
+                    <Button onClick={() => handleDelete(e.id)} variant="ghost" size="xs" className="text-red-600">Delete</Button>
                   </div>
                 </div>
               )
@@ -282,8 +280,8 @@ export default function EntriesClient({ entries: initial, projects, accessToken 
                   ) : (
                     <tr key={e.id} className="hover:bg-gray-50">
                       <td className="px-6 py-4 text-gray-600 whitespace-nowrap">
-                        {new Date(e.startedAt).toLocaleDateString()}{" "}
-                        {new Date(e.startedAt).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
+                        {formatDate(e.startedAt, timezone)}{" "}
+                        {formatTime(e.startedAt, timezone)}
                       </td>
                       <td className="px-6 py-4 text-gray-700">
                         {e.description || <span className="text-gray-400">—</span>}
@@ -294,9 +292,9 @@ export default function EntriesClient({ entries: initial, projects, accessToken 
                       <td className="px-6 py-4 font-mono">
                         {e.durationSeconds != null ? formatDuration(e.durationSeconds) : "—"}
                       </td>
-                      <td className="px-6 py-4 text-right space-x-3">
-                        <button onClick={() => startEdit(e)} className="text-blue-600 hover:underline text-sm">Edit</button>
-                        <button onClick={() => handleDelete(e.id)} className="text-red-600 hover:underline text-sm">Delete</button>
+                      <td className="px-6 py-4 text-right space-x-2">
+                        <Button onClick={() => startEdit(e)} variant="ghost" size="xs" className="text-blue-600">Edit</Button>
+                        <Button onClick={() => handleDelete(e.id)} variant="ghost" size="xs" className="text-red-600">Delete</Button>
                       </td>
                     </tr>
                   )

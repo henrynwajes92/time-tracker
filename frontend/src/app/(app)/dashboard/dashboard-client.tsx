@@ -1,6 +1,12 @@
 "use client";
 
 import { useState, useEffect, useRef } from "react";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { NativeSelect } from "@/components/ui/native-select";
+import { useTimezone } from "@/hooks/use-timezone";
+import { formatTime, toLocalInputValue, fromLocalInputValue } from "@/lib/format-date";
 
 interface Project { id: string; name: string }
 export interface TimeEntry {
@@ -29,37 +35,35 @@ function formatHHMMSS(seconds: number) {
   return [h, m, s].map((v) => String(v).padStart(2, "0")).join(":");
 }
 
-function toLocalDateTimeInput(iso: string) {
-  const d = new Date(iso);
-  const pad = (n: number) => String(n).padStart(2, "0");
-  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
+function tzDateStr(iso: string, timezone: string) {
+  return new Intl.DateTimeFormat("en-CA", {
+    timeZone: timezone,
+    year: "numeric", month: "2-digit", day: "2-digit",
+  }).format(new Date(iso));
 }
 
-function groupByDay(entries: TimeEntry[]): DayGroup[] {
-  // show this week (Mon–Sun)
+function groupByDay(entries: TimeEntry[], timezone: string): DayGroup[] {
   const now = new Date();
-  const weekStart = new Date(now);
-  weekStart.setDate(now.getDate() - ((now.getDay() + 6) % 7));
-  weekStart.setHours(0, 0, 0, 0);
+  const todayStr = tzDateStr(now.toISOString(), timezone);
+  const yesterdayStr = tzDateStr(new Date(Date.now() - 86400000).toISOString(), timezone);
 
-  const thisWeek = entries.filter((e) => new Date(e.startedAt) >= weekStart);
+  // Show last 7 days
+  const cutoff = new Date(Date.now() - 7 * 86400000);
+  const recent = entries.filter((e) => new Date(e.startedAt) >= cutoff);
 
   const groups: Record<string, DayGroup> = {};
-  const todayStr = now.toISOString().slice(0, 10);
-  const yesterdayStr = new Date(Date.now() - 86400000).toISOString().slice(0, 10);
-
-  for (const e of thisWeek) {
-    const dateStr = new Date(e.startedAt).toISOString().slice(0, 10);
+  for (const e of recent) {
+    const dateStr = tzDateStr(e.startedAt, timezone);
     let label: string;
     if (dateStr === todayStr) label = "Today";
     else if (dateStr === yesterdayStr) label = "Yesterday";
     else {
-      const d = new Date(e.startedAt);
-      label = d.toLocaleDateString("en-US", { weekday: "short", month: "short", day: "numeric" });
+      label = new Intl.DateTimeFormat("en-US", {
+        timeZone: timezone,
+        weekday: "short", month: "short", day: "numeric",
+      }).format(new Date(e.startedAt));
     }
-    if (!groups[dateStr]) {
-      groups[dateStr] = { dateStr, label, entries: [], totalSeconds: 0 };
-    }
+    if (!groups[dateStr]) groups[dateStr] = { dateStr, label, entries: [], totalSeconds: 0 };
     groups[dateStr].entries.push(e);
     groups[dateStr].totalSeconds += e.durationSeconds ?? 0;
   }
@@ -75,6 +79,7 @@ interface Props {
 }
 
 export default function DashboardClient({ projects, initialEntries, initialActive, accessToken }: Props) {
+  const { timezone } = useTimezone();
   const [active, setActive] = useState<TimeEntry | null>(initialActive);
   const [entries, setEntries] = useState<TimeEntry[]>(initialEntries);
   const [elapsed, setElapsed] = useState(() => {
@@ -103,9 +108,7 @@ export default function DashboardClient({ projects, initialEntries, initialActiv
     } else {
       if (intervalRef.current) clearInterval(intervalRef.current);
     }
-    return () => {
-      if (intervalRef.current) clearInterval(intervalRef.current);
-    };
+    return () => { if (intervalRef.current) clearInterval(intervalRef.current); };
   }, [!!active]);
 
   function fetchWithToken(path: string, options: RequestInit = {}) {
@@ -162,8 +165,8 @@ export default function DashboardClient({ projects, initialEntries, initialActiv
     setEditingId(entry.id);
     setEditDesc(entry.description ?? "");
     setEditProject(entry.projectId ?? "");
-    setEditStart(entry.startedAt ? toLocalDateTimeInput(entry.startedAt) : "");
-    setEditEnd(entry.endedAt ? toLocalDateTimeInput(entry.endedAt) : "");
+    setEditStart(entry.startedAt ? toLocalInputValue(entry.startedAt, timezone) : "");
+    setEditEnd(entry.endedAt ? toLocalInputValue(entry.endedAt, timezone) : "");
     setEditError("");
   }
 
@@ -175,8 +178,8 @@ export default function DashboardClient({ projects, initialEntries, initialActiv
       body: JSON.stringify({
         projectId: editProject || (projects[0]?.id ?? ""),
         description: editDesc,
-        startedAt: new Date(editStart).toISOString(),
-        endedAt: new Date(editEnd).toISOString(),
+        startedAt: fromLocalInputValue(editStart, timezone),
+        endedAt: fromLocalInputValue(editEnd, timezone),
       }),
     });
     setEditSaving(false);
@@ -190,10 +193,9 @@ export default function DashboardClient({ projects, initialEntries, initialActiv
     setEditingId(null);
   }
 
-  const groups = groupByDay(entries);
+  const groups = groupByDay(entries, timezone);
   const weekTotal = groups.reduce((s, g) => s + g.totalSeconds, 0);
   const selectedProjectName = projects.find((p) => p.id === selectedProject)?.name;
-  const inputCls = "w-full border rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500";
 
   return (
     <div className="flex flex-col min-h-full">
@@ -259,21 +261,22 @@ export default function DashboardClient({ projects, initialEntries, initialActiv
 
             {/* Start / Stop */}
             {active ? (
-              <button
+              <Button
                 onClick={handleStop}
                 disabled={loading}
-                className="bg-red-500 text-white px-3 sm:px-5 py-2 rounded text-sm font-semibold hover:bg-red-600 disabled:opacity-50 shrink-0"
+                variant="destructive"
+                className="shrink-0 px-3 sm:px-5"
               >
                 {loading ? "…" : "STOP"}
-              </button>
+              </Button>
             ) : (
-              <button
+              <Button
                 onClick={handleStart}
                 disabled={loading || !selectedProject}
-                className="bg-blue-600 text-white px-3 sm:px-5 py-2 rounded text-sm font-semibold hover:bg-blue-700 disabled:opacity-50 shrink-0"
+                className="shrink-0 px-3 sm:px-5"
               >
                 {loading ? "…" : "START"}
-              </button>
+              </Button>
             )}
           </div>
           {error && <p className="mt-1 text-xs text-red-600">{error}</p>}
@@ -305,7 +308,6 @@ export default function DashboardClient({ projects, initialEntries, initialActiv
 
             {groups.map((group) => (
               <div key={group.dateStr}>
-                {/* Day header */}
                 <div className="flex items-center justify-between py-2 mt-2">
                   <span className="text-sm text-gray-500 font-medium">{group.label}</span>
                   <span className="text-sm text-gray-500">
@@ -314,52 +316,69 @@ export default function DashboardClient({ projects, initialEntries, initialActiv
                   </span>
                 </div>
 
-                {/* Entries */}
                 <div className="border rounded-xl overflow-hidden mb-3">
                   {group.entries.map((entry, idx) =>
                     editingId === entry.id ? (
                       <div key={entry.id} className={`bg-blue-50 p-4 ${idx > 0 ? "border-t" : ""}`}>
                         <div className="space-y-3">
-                          <div>
-                            <label className="block text-xs font-medium mb-1 text-gray-600">Description</label>
-                            <input
+                          <div className="space-y-1.5">
+                            <Label>Description</Label>
+                            <Input
                               value={editDesc}
                               onChange={(ev) => setEditDesc(ev.target.value)}
                               placeholder="What did you work on?"
-                              className={inputCls}
+                              className="h-9"
                             />
                           </div>
-                          <div>
-                            <label className="block text-xs font-medium mb-1 text-gray-600">Project</label>
-                            <select value={editProject} onChange={(ev) => setEditProject(ev.target.value)} className={inputCls}>
+                          <div className="space-y-1.5">
+                            <Label>Project</Label>
+                            <NativeSelect
+                              value={editProject}
+                              onChange={(ev) => setEditProject(ev.target.value)}
+                              className="h-9"
+                            >
                               <option value="">No project</option>
                               {projects.map((p) => (
                                 <option key={p.id} value={p.id}>{p.name}</option>
                               ))}
-                            </select>
+                            </NativeSelect>
                           </div>
                           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                            <div>
-                              <label className="block text-xs font-medium mb-1 text-gray-600">Start</label>
-                              <input type="datetime-local" value={editStart} onChange={(ev) => setEditStart(ev.target.value)} className={inputCls} />
+                            <div className="space-y-1.5">
+                              <Label>Start</Label>
+                              <Input
+                                type="datetime-local"
+                                value={editStart}
+                                onChange={(ev) => setEditStart(ev.target.value)}
+                                className="h-9"
+                              />
                             </div>
-                            <div>
-                              <label className="block text-xs font-medium mb-1 text-gray-600">End</label>
-                              <input type="datetime-local" value={editEnd} onChange={(ev) => setEditEnd(ev.target.value)} className={inputCls} />
+                            <div className="space-y-1.5">
+                              <Label>End</Label>
+                              <Input
+                                type="datetime-local"
+                                value={editEnd}
+                                onChange={(ev) => setEditEnd(ev.target.value)}
+                                className="h-9"
+                              />
                             </div>
                           </div>
                           {editError && <p className="text-sm text-red-600">{editError}</p>}
                           <div className="flex gap-2">
-                            <button
+                            <Button
                               onClick={() => handleUpdate(entry.id)}
                               disabled={editSaving}
-                              className="bg-blue-600 text-white px-4 py-1.5 rounded text-sm hover:bg-blue-700 disabled:opacity-50"
+                              size="sm"
                             >
                               {editSaving ? "Saving…" : "Save changes"}
-                            </button>
-                            <button onClick={() => setEditingId(null)} className="px-4 py-1.5 border rounded text-sm hover:bg-gray-50">
+                            </Button>
+                            <Button
+                              onClick={() => setEditingId(null)}
+                              variant="outline"
+                              size="sm"
+                            >
                               Cancel
-                            </button>
+                            </Button>
                           </div>
                         </div>
                       </div>
@@ -368,7 +387,6 @@ export default function DashboardClient({ projects, initialEntries, initialActiv
                         key={entry.id}
                         className={`flex items-center gap-3 sm:gap-4 px-4 py-3 bg-white hover:bg-gray-50 group ${idx > 0 ? "border-t" : ""}`}
                       >
-                        {/* Description + project */}
                         <div className="flex-1 min-w-0">
                           <p className="text-sm font-medium truncate">
                             {entry.description || <span className="text-gray-400 font-normal">No description</span>}
@@ -378,34 +396,33 @@ export default function DashboardClient({ projects, initialEntries, initialActiv
                           )}
                         </div>
 
-                        {/* Time range */}
                         <span className="hidden sm:block text-sm text-gray-400 shrink-0 tabular-nums">
-                          {new Date(entry.startedAt).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
+                          {formatTime(entry.startedAt, timezone)}
                           {" – "}
-                          {entry.endedAt
-                            ? new Date(entry.endedAt).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })
-                            : "…"}
+                          {entry.endedAt ? formatTime(entry.endedAt, timezone) : "…"}
                         </span>
 
-                        {/* Duration */}
                         <span className="text-sm font-semibold text-gray-900 tabular-nums shrink-0">
                           {entry.durationSeconds != null ? formatHHMMSS(entry.durationSeconds) : "—"}
                         </span>
 
-                        {/* Actions */}
                         <div className="flex items-center gap-2 sm:opacity-0 sm:group-hover:opacity-100 transition-opacity shrink-0">
-                          <button
+                          <Button
                             onClick={() => startEdit(entry)}
-                            className="text-gray-400 hover:text-blue-600 text-xs px-1"
+                            variant="ghost"
+                            size="xs"
+                            className="text-gray-400 hover:text-blue-600"
                           >
                             Edit
-                          </button>
-                          <button
+                          </Button>
+                          <Button
                             onClick={() => handleDelete(entry.id)}
-                            className="text-gray-400 hover:text-red-500 text-xs px-1"
+                            variant="ghost"
+                            size="xs"
+                            className="text-gray-400 hover:text-red-500"
                           >
                             Delete
-                          </button>
+                          </Button>
                         </div>
                       </div>
                     )

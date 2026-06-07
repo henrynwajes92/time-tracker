@@ -17,7 +17,6 @@ export default function Sidebar({ userName, isAdmin }: Props) {
 
   const navLinks = [
     { href: "/dashboard", label: "Dashboard" },
-    { href: "/timer", label: "Timer" },
     { href: "/entries", label: "Time Entries" },
     { href: "/projects", label: "Projects" },
     ...(isAdmin ? [{ href: "/team", label: "Team" }] : []),

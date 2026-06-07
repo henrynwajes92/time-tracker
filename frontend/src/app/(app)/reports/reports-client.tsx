@@ -1,12 +1,17 @@
 "use client";
 
 import { useState } from "react";
+import { Button } from "@/components/ui/button";
+import { Label } from "@/components/ui/label";
+import { NativeSelect } from "@/components/ui/native-select";
+import { useTimezone } from "@/hooks/use-timezone";
+import { formatDate } from "@/lib/format-date";
 
 interface Member { id: string; name: string }
 interface Project { id: string; name: string }
 interface ReportEntry {
   userId: string; userName: string;
-  projectName: string; taskName: string;
+  projectName: string;
   description: string; startedAt: string;
   durationSeconds: number;
 }
@@ -26,6 +31,9 @@ function weekStartStr() {
   return d.toISOString().slice(0, 10);
 }
 
+const inputCls =
+  "h-9 w-full rounded-lg border border-input bg-transparent px-2.5 py-1 text-sm transition-colors outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50";
+
 interface Props {
   members: Member[];
   projects: Project[];
@@ -35,6 +43,7 @@ interface Props {
 }
 
 export default function ReportsClient({ members, projects, isAdmin, currentUserId, accessToken }: Props) {
+  const { timezone } = useTimezone();
   const [from, setFrom] = useState(weekStartStr());
   const [to, setTo] = useState(todayStr());
   const [userId, setUserId] = useState("");
@@ -57,26 +66,17 @@ export default function ReportsClient({ members, projects, isAdmin, currentUserI
     e.preventDefault();
     setLoading(true);
     setError("");
-
     const res = await fetch(`${API_URL}/api/reports?${buildParams()}`, {
       headers: { Authorization: `Bearer ${accessToken}` },
     });
-
     setLoading(false);
-
-    if (!res.ok) {
-      setError("Failed to load report.");
-      return;
-    }
-
+    if (!res.ok) { setError("Failed to load report."); return; }
     setEntries(await res.json());
   }
 
   function handleExport() {
     const url = `${API_URL}/api/reports?${buildParams({ format: "csv" })}`;
     const a = document.createElement("a");
-    a.href = url;
-    // Can't set auth header via anchor — fetch blob instead
     fetch(url, { headers: { Authorization: `Bearer ${accessToken}` } })
       .then((r) => r.blob())
       .then((blob) => {
@@ -86,7 +86,73 @@ export default function ReportsClient({ members, projects, isAdmin, currentUserI
       });
   }
 
-  // Summarise by user+project
+  async function handleExportPDF() {
+    const [{ default: jsPDF }, { default: autoTable }] = await Promise.all([
+      import("jspdf"),
+      import("jspdf-autotable"),
+    ]);
+
+    const doc = new jsPDF();
+    const blue: [number, number, number] = [30, 58, 138];
+
+    doc.setFontSize(18);
+    doc.setTextColor(20);
+    doc.text("Time Report", 14, 20);
+    doc.setFontSize(10);
+    doc.setTextColor(100);
+    doc.text(`Period: ${from} to ${to}`, 14, 28);
+
+    let curY = 38;
+
+    if (summary.length > 0) {
+      doc.setFontSize(12);
+      doc.setTextColor(30);
+      doc.text("Summary", 14, curY);
+      curY += 6;
+      autoTable(doc, {
+        head: [isAdmin ? ["User", "Project", "Hours"] : ["Project", "Hours"]],
+        body: summary.map((row) =>
+          isAdmin
+            ? [row.userName, row.projectName, formatHours(row.seconds)]
+            : [row.projectName, formatHours(row.seconds)]
+        ),
+        startY: curY,
+        headStyles: { fillColor: blue },
+      });
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      curY = (doc as any).lastAutoTable.finalY + 14;
+    }
+
+    if (entries && entries.length > 0) {
+      doc.setFontSize(12);
+      doc.setTextColor(30);
+      doc.text(`Detailed Entries (${entries.length})`, 14, curY);
+      curY += 6;
+      autoTable(doc, {
+        head: [
+          isAdmin
+            ? ["Date", "User", "Project", "Description", "Hours"]
+            : ["Date", "Project", "Description", "Hours"],
+        ],
+        body: entries.map((e) =>
+          isAdmin
+            ? [formatDate(e.startedAt, timezone), e.userName, e.projectName, e.description || "—", formatHours(e.durationSeconds)]
+            : [formatDate(e.startedAt, timezone), e.projectName, e.description || "—", formatHours(e.durationSeconds)]
+        ),
+        startY: curY,
+        headStyles: { fillColor: blue },
+        styles: { fontSize: 9 },
+      });
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      curY = (doc as any).lastAutoTable.finalY + 8;
+    }
+
+    doc.setFontSize(10);
+    doc.setTextColor(60);
+    doc.text(`Total: ${formatHours(totalSeconds)}`, 14, curY);
+    doc.save(`time-report-${from}-to-${to}.pdf`);
+  }
+
   const summary = entries
     ? Object.values(
         entries.reduce<Record<string, { userName: string; projectName: string; seconds: number }>>((acc, e) => {
@@ -105,46 +171,57 @@ export default function ReportsClient({ members, projects, isAdmin, currentUserI
       {/* Filters */}
       <form onSubmit={handleRun} className="bg-white rounded-xl border shadow-sm p-6">
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 md:grid-cols-4">
-          <div>
-            <label className="block text-sm font-medium mb-1">From</label>
-            <input type="date" value={from} onChange={(e) => setFrom(e.target.value)}
-              className="w-full border rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" />
+          <div className="space-y-1.5">
+            <Label htmlFor="from">From</Label>
+            <input
+              id="from"
+              type="date"
+              value={from}
+              onChange={(e) => setFrom(e.target.value)}
+              className={inputCls}
+            />
           </div>
-          <div>
-            <label className="block text-sm font-medium mb-1">To</label>
-            <input type="date" value={to} onChange={(e) => setTo(e.target.value)}
-              className="w-full border rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" />
+          <div className="space-y-1.5">
+            <Label htmlFor="to">To</Label>
+            <input
+              id="to"
+              type="date"
+              value={to}
+              onChange={(e) => setTo(e.target.value)}
+              className={inputCls}
+            />
           </div>
           {isAdmin && (
-            <div>
-              <label className="block text-sm font-medium mb-1">User</label>
-              <select value={userId} onChange={(e) => setUserId(e.target.value)}
-                className="w-full border rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
+            <div className="space-y-1.5">
+              <Label htmlFor="user-filter">User</Label>
+              <NativeSelect id="user-filter" value={userId} onChange={(e) => setUserId(e.target.value)} className="h-9">
                 <option value="">All members</option>
                 {members.map((m) => <option key={m.id} value={m.id}>{m.name}</option>)}
-              </select>
+              </NativeSelect>
             </div>
           )}
-          <div>
-            <label className="block text-sm font-medium mb-1">Project</label>
-            <select value={projectId} onChange={(e) => setProjectId(e.target.value)}
-              className="w-full border rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
+          <div className="space-y-1.5">
+            <Label htmlFor="project-filter">Project</Label>
+            <NativeSelect id="project-filter" value={projectId} onChange={(e) => setProjectId(e.target.value)} className="h-9">
               <option value="">All projects</option>
               {projects.map((p) => <option key={p.id} value={p.id}>{p.name}</option>)}
-            </select>
+            </NativeSelect>
           </div>
         </div>
         {error && <p className="mt-3 text-sm text-red-600">{error}</p>}
-        <div className="mt-4 flex gap-2">
-          <button type="submit" disabled={loading}
-            className="bg-blue-600 text-white px-4 py-2 rounded-md text-sm font-medium hover:bg-blue-700 disabled:opacity-50">
+        <div className="mt-4 flex flex-wrap gap-2">
+          <Button type="submit" disabled={loading}>
             {loading ? "Loading…" : "Run report"}
-          </button>
+          </Button>
           {entries && entries.length > 0 && (
-            <button type="button" onClick={handleExport}
-              className="border px-4 py-2 rounded-md text-sm font-medium hover:bg-gray-50">
-              Export CSV
-            </button>
+            <>
+              <Button type="button" onClick={handleExport} variant="outline">
+                Export CSV
+              </Button>
+              <Button type="button" onClick={handleExportPDF} variant="outline">
+                Export PDF
+              </Button>
+            </>
           )}
         </div>
       </form>
@@ -161,24 +238,24 @@ export default function ReportsClient({ members, projects, isAdmin, currentUserI
               <p className="px-6 py-8 text-center text-gray-400 text-sm">No entries found for the selected filters.</p>
             ) : (
               <div className="overflow-x-auto">
-              <table className="w-full text-sm">
-                <thead className="bg-gray-50 border-b">
-                  <tr>
-                    {isAdmin && <th className="text-left px-6 py-3 font-medium text-gray-500">User</th>}
-                    <th className="text-left px-6 py-3 font-medium text-gray-500">Project</th>
-                    <th className="text-right px-6 py-3 font-medium text-gray-500">Hours</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y">
-                  {summary.map((row, i) => (
-                    <tr key={i}>
-                      {isAdmin && <td className="px-6 py-3">{row.userName}</td>}
-                      <td className="px-6 py-3">{row.projectName}</td>
-                      <td className="px-6 py-3 text-right font-mono">{formatHours(row.seconds)}</td>
+                <table className="w-full text-sm">
+                  <thead className="bg-gray-50 border-b">
+                    <tr>
+                      {isAdmin && <th className="text-left px-6 py-3 font-medium text-gray-500">User</th>}
+                      <th className="text-left px-6 py-3 font-medium text-gray-500">Project</th>
+                      <th className="text-right px-6 py-3 font-medium text-gray-500">Hours</th>
                     </tr>
-                  ))}
-                </tbody>
-              </table>
+                  </thead>
+                  <tbody className="divide-y">
+                    {summary.map((row, i) => (
+                      <tr key={i}>
+                        {isAdmin && <td className="px-6 py-3">{row.userName}</td>}
+                        <td className="px-6 py-3">{row.projectName}</td>
+                        <td className="px-6 py-3 text-right font-mono">{formatHours(row.seconds)}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
               </div>
             )}
           </div>
@@ -190,32 +267,28 @@ export default function ReportsClient({ members, projects, isAdmin, currentUserI
                 <h2 className="font-medium">Detail ({entries.length} entries)</h2>
               </div>
               <div className="overflow-x-auto">
-              <table className="w-full text-sm">
-                <thead className="bg-gray-50 border-b">
-                  <tr>
-                    <th className="text-left px-6 py-3 font-medium text-gray-500">Date</th>
-                    {isAdmin && <th className="text-left px-6 py-3 font-medium text-gray-500">User</th>}
-                    <th className="text-left px-6 py-3 font-medium text-gray-500">Project / Task</th>
-                    <th className="text-left px-6 py-3 font-medium text-gray-500">Description</th>
-                    <th className="text-right px-6 py-3 font-medium text-gray-500">Hours</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y">
-                  {entries.map((e, i) => (
-                    <tr key={i}>
-                      <td className="px-6 py-3 whitespace-nowrap text-gray-600">{new Date(e.startedAt).toLocaleDateString()}</td>
-                      {isAdmin && <td className="px-6 py-3">{e.userName}</td>}
-                      <td className="px-6 py-3">
-                        <span className="font-medium">{e.projectName}</span>
-                        <span className="text-gray-400 mx-1">·</span>
-                        {e.taskName}
-                      </td>
-                      <td className="px-6 py-3 text-gray-500">{e.description || "—"}</td>
-                      <td className="px-6 py-3 text-right font-mono">{formatHours(e.durationSeconds)}</td>
+                <table className="w-full text-sm">
+                  <thead className="bg-gray-50 border-b">
+                    <tr>
+                      <th className="text-left px-6 py-3 font-medium text-gray-500">Date</th>
+                      {isAdmin && <th className="text-left px-6 py-3 font-medium text-gray-500">User</th>}
+                      <th className="text-left px-6 py-3 font-medium text-gray-500">Project</th>
+                      <th className="text-left px-6 py-3 font-medium text-gray-500">Description</th>
+                      <th className="text-right px-6 py-3 font-medium text-gray-500">Hours</th>
                     </tr>
-                  ))}
-                </tbody>
-              </table>
+                  </thead>
+                  <tbody className="divide-y">
+                    {entries.map((e, i) => (
+                      <tr key={i}>
+                        <td className="px-6 py-3 whitespace-nowrap text-gray-600">{formatDate(e.startedAt, timezone)}</td>
+                        {isAdmin && <td className="px-6 py-3">{e.userName}</td>}
+                        <td className="px-6 py-3 font-medium">{e.projectName}</td>
+                        <td className="px-6 py-3 text-gray-500">{e.description || "—"}</td>
+                        <td className="px-6 py-3 text-right font-mono">{formatHours(e.durationSeconds)}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
               </div>
             </div>
           )}
