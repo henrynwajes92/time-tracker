@@ -89,9 +89,9 @@ export default function TeamClient({ members: initial, currentUserId, accessToke
   return (
     <div className="space-y-8">
       {/* Invite form */}
-      <div className="bg-white rounded-xl shadow-sm border p-6">
+      <div className="bg-white rounded-xl shadow-sm border p-4 sm:p-6">
         <h2 className="font-medium mb-4">Invite a team member</h2>
-        <form onSubmit={handleInvite} className="flex gap-3">
+        <form onSubmit={handleInvite} className="flex flex-col sm:flex-row gap-3">
           <input
             type="email"
             placeholder="colleague@example.com"
@@ -103,7 +103,7 @@ export default function TeamClient({ members: initial, currentUserId, accessToke
           <button
             type="submit"
             disabled={inviteLoading}
-            className="bg-blue-600 text-white px-4 py-2 rounded-md text-sm font-medium hover:bg-blue-700 disabled:opacity-50"
+            className="bg-blue-600 text-white px-4 py-2 rounded-md text-sm font-medium hover:bg-blue-700 disabled:opacity-50 shrink-0"
           >
             {inviteLoading ? "Generating…" : "Generate invite link"}
           </button>
@@ -126,11 +126,11 @@ export default function TeamClient({ members: initial, currentUserId, accessToke
               <input
                 readOnly
                 value={inviteLink}
-                className="flex-1 border rounded-md px-3 py-2 text-sm bg-gray-50 font-mono"
+                className="flex-1 border rounded-md px-3 py-2 text-sm bg-gray-50 font-mono min-w-0"
               />
               <button
                 onClick={() => navigator.clipboard.writeText(inviteLink)}
-                className="text-sm px-3 py-2 border rounded-md hover:bg-gray-50"
+                className="text-sm px-3 py-2 border rounded-md hover:bg-gray-50 shrink-0"
               >
                 Copy
               </button>
@@ -141,7 +141,42 @@ export default function TeamClient({ members: initial, currentUserId, accessToke
 
       {/* Member list */}
       <div className="bg-white rounded-xl shadow-sm border overflow-hidden">
-        <table className="w-full text-sm">
+        {/* Mobile: card list */}
+        <div className="sm:hidden divide-y">
+          {members.map((m) => (
+            <div key={m.id} className="p-4">
+              <div className="flex items-start justify-between gap-2">
+                <div className="min-w-0">
+                  <p className="font-medium text-sm">{m.name}</p>
+                  <p className="text-xs text-gray-500 mt-0.5 truncate">{m.email}</p>
+                </div>
+                {m.id === currentUserId ? (
+                  <span className="text-xs font-medium bg-gray-100 px-2 py-1 rounded shrink-0">{m.role}</span>
+                ) : (
+                  <select
+                    value={m.role}
+                    onChange={(e) => handleRoleChange(m.id, e.target.value)}
+                    className="border rounded px-2 py-1 text-xs shrink-0"
+                  >
+                    <option value="MEMBER">MEMBER</option>
+                    <option value="ADMIN">ADMIN</option>
+                  </select>
+                )}
+              </div>
+              {m.id !== currentUserId && (
+                <button
+                  onClick={() => handleRemove(m.id)}
+                  className="mt-3 text-red-600 text-sm hover:underline"
+                >
+                  Remove
+                </button>
+              )}
+            </div>
+          ))}
+        </div>
+
+        {/* Desktop: table */}
+        <table className="hidden sm:table w-full text-sm">
           <thead className="bg-gray-50 border-b">
             <tr>
               <th className="text-left px-6 py-3 font-medium text-gray-500">Name</th>

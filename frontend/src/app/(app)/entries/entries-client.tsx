@@ -99,7 +99,6 @@ export default function EntriesClient({ entries: initial, projects, accessToken 
     setEditDesc(entry.description ?? "");
     setEditStart(entry.startedAt ? toLocalDateTimeInput(entry.startedAt) : "");
     setEditEnd(entry.endedAt ? toLocalDateTimeInput(entry.endedAt) : "");
-    // find which project this task belongs to
     const proj = projects.find((p) => p.tasks.some((t) => t.id === entry.taskId));
     setEditProject(proj?.id ?? "");
     setEditTask(entry.taskId);
@@ -137,6 +136,45 @@ export default function EntriesClient({ entries: initial, projects, accessToken 
 
   const inputCls = "w-full border rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500";
 
+  // Shared edit form fields (used in both mobile card and desktop table row)
+  function EditFields() {
+    return (
+      <div className="space-y-3">
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+          <div>
+            <label className="block text-xs font-medium mb-1 text-gray-600">Project</label>
+            <select value={editProject} onChange={(ev) => { setEditProject(ev.target.value); setEditTask(""); }} className={inputCls}>
+              <option value="">Select project…</option>
+              {projects.map((p) => <option key={p.id} value={p.id}>{p.name}</option>)}
+            </select>
+          </div>
+          <div>
+            <label className="block text-xs font-medium mb-1 text-gray-600">Task</label>
+            <select value={editTask} onChange={(ev) => setEditTask(ev.target.value)} disabled={!editProject} className={`${inputCls} disabled:bg-gray-50`}>
+              <option value="">Select task…</option>
+              {editTasks.map((t) => <option key={t.id} value={t.id}>{t.name}</option>)}
+            </select>
+          </div>
+        </div>
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+          <div>
+            <label className="block text-xs font-medium mb-1 text-gray-600">Start time</label>
+            <input type="datetime-local" value={editStart} onChange={(ev) => setEditStart(ev.target.value)} className={inputCls} />
+          </div>
+          <div>
+            <label className="block text-xs font-medium mb-1 text-gray-600">End time</label>
+            <input type="datetime-local" value={editEnd} onChange={(ev) => setEditEnd(ev.target.value)} className={inputCls} />
+          </div>
+        </div>
+        <div>
+          <label className="block text-xs font-medium mb-1 text-gray-600">Description</label>
+          <input value={editDesc} onChange={(ev) => setEditDesc(ev.target.value)} placeholder="Description" className={inputCls} />
+        </div>
+        {editError && <p className="text-sm text-red-600">{editError}</p>}
+      </div>
+    );
+  }
+
   return (
     <div className="space-y-6">
       <div className="flex justify-end">
@@ -150,10 +188,10 @@ export default function EntriesClient({ entries: initial, projects, accessToken 
 
       {/* Create form */}
       {showForm && (
-        <div className="bg-white rounded-xl border shadow-sm p-6">
+        <div className="bg-white rounded-xl border shadow-sm p-4 sm:p-6">
           <h2 className="font-medium mb-4">Log time entry</h2>
           <form onSubmit={handleCreate} className="space-y-4">
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div>
                 <label className="block text-sm font-medium mb-1">Project</label>
                 <select value={newProject} onChange={(e) => { setNewProject(e.target.value); setNewTask(""); }} required className={inputCls}>
@@ -169,7 +207,7 @@ export default function EntriesClient({ entries: initial, projects, accessToken 
                 </select>
               </div>
             </div>
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div>
                 <label className="block text-sm font-medium mb-1">Start time</label>
                 <input type="datetime-local" value={newStart} onChange={(e) => setNewStart(e.target.value)} required className={inputCls} />
@@ -197,81 +235,88 @@ export default function EntriesClient({ entries: initial, projects, accessToken 
       {entries.length === 0 ? (
         <div className="text-center py-16 text-gray-400">No time entries yet.</div>
       ) : (
-        <div className="bg-white rounded-xl border shadow-sm overflow-hidden">
-          <table className="w-full text-sm">
-            <thead className="bg-gray-50 border-b">
-              <tr>
-                <th className="text-left px-6 py-3 font-medium text-gray-500">Date</th>
-                <th className="text-left px-6 py-3 font-medium text-gray-500">Description</th>
-                <th className="text-left px-6 py-3 font-medium text-gray-500">Duration</th>
-                <th className="px-6 py-3" />
-              </tr>
-            </thead>
-            <tbody className="divide-y">
-              {entries.map((e) => (
-                editingId === e.id ? (
-                  /* Inline edit row */
-                  <tr key={e.id} className="bg-blue-50">
-                    <td colSpan={4} className="px-6 py-4">
-                      <div className="space-y-3">
-                        <div className="grid grid-cols-2 gap-3">
-                          <div>
-                            <label className="block text-xs font-medium mb-1 text-gray-600">Project</label>
-                            <select value={editProject} onChange={(ev) => { setEditProject(ev.target.value); setEditTask(""); }} className={inputCls}>
-                              <option value="">Select project…</option>
-                              {projects.map((p) => <option key={p.id} value={p.id}>{p.name}</option>)}
-                            </select>
-                          </div>
-                          <div>
-                            <label className="block text-xs font-medium mb-1 text-gray-600">Task</label>
-                            <select value={editTask} onChange={(ev) => setEditTask(ev.target.value)} disabled={!editProject} className={`${inputCls} disabled:bg-gray-50`}>
-                              <option value="">Select task…</option>
-                              {editTasks.map((t) => <option key={t.id} value={t.id}>{t.name}</option>)}
-                            </select>
-                          </div>
-                        </div>
-                        <div className="grid grid-cols-2 gap-3">
-                          <div>
-                            <label className="block text-xs font-medium mb-1 text-gray-600">Start time</label>
-                            <input type="datetime-local" value={editStart} onChange={(ev) => setEditStart(ev.target.value)} className={inputCls} />
-                          </div>
-                          <div>
-                            <label className="block text-xs font-medium mb-1 text-gray-600">End time</label>
-                            <input type="datetime-local" value={editEnd} onChange={(ev) => setEditEnd(ev.target.value)} className={inputCls} />
-                          </div>
-                        </div>
-                        <div>
-                          <label className="block text-xs font-medium mb-1 text-gray-600">Description</label>
-                          <input value={editDesc} onChange={(ev) => setEditDesc(ev.target.value)} placeholder="Description" className={inputCls} />
-                        </div>
-                        {editError && <p className="text-sm text-red-600">{editError}</p>}
-                        <div className="flex gap-2">
+        <>
+          {/* Mobile: card list */}
+          <div className="sm:hidden space-y-3">
+            {entries.map((e) =>
+              editingId === e.id ? (
+                <div key={e.id} className="bg-blue-50 rounded-xl border p-4">
+                  <EditFields />
+                  <div className="flex gap-2 mt-3">
+                    <button onClick={() => handleUpdate(e.id)} disabled={editSaving} className="bg-blue-600 text-white px-4 py-1.5 rounded text-sm hover:bg-blue-700 disabled:opacity-50">
+                      {editSaving ? "Saving…" : "Save changes"}
+                    </button>
+                    <button onClick={() => setEditingId(null)} className="px-4 py-1.5 border rounded text-sm hover:bg-gray-50">Cancel</button>
+                  </div>
+                </div>
+              ) : (
+                <div key={e.id} className="bg-white rounded-xl border shadow-sm p-4">
+                  <div className="flex items-start justify-between gap-2">
+                    <div className="min-w-0">
+                      <p className="text-sm font-medium">
+                        {e.description || <span className="text-gray-400">No description</span>}
+                      </p>
+                      <p className="text-xs text-gray-500 mt-0.5">
+                        {new Date(e.startedAt).toLocaleDateString()} ·{" "}
+                        {new Date(e.startedAt).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
+                      </p>
+                    </div>
+                    <span className="text-sm font-mono text-gray-600 shrink-0">
+                      {e.durationSeconds != null ? formatDuration(e.durationSeconds) : "—"}
+                    </span>
+                  </div>
+                  <div className="flex gap-4 mt-3 pt-3 border-t">
+                    <button onClick={() => startEdit(e)} className="text-blue-600 text-sm hover:underline">Edit</button>
+                    <button onClick={() => handleDelete(e.id)} className="text-red-600 text-sm hover:underline">Delete</button>
+                  </div>
+                </div>
+              )
+            )}
+          </div>
+
+          {/* Desktop: table */}
+          <div className="hidden sm:block bg-white rounded-xl border shadow-sm overflow-x-auto">
+            <table className="w-full text-sm">
+              <thead className="bg-gray-50 border-b">
+                <tr>
+                  <th className="text-left px-6 py-3 font-medium text-gray-500">Date</th>
+                  <th className="text-left px-6 py-3 font-medium text-gray-500">Description</th>
+                  <th className="text-left px-6 py-3 font-medium text-gray-500">Duration</th>
+                  <th className="px-6 py-3" />
+                </tr>
+              </thead>
+              <tbody className="divide-y">
+                {entries.map((e) =>
+                  editingId === e.id ? (
+                    <tr key={e.id} className="bg-blue-50">
+                      <td colSpan={4} className="px-6 py-4">
+                        <EditFields />
+                        <div className="flex gap-2 mt-3">
                           <button onClick={() => handleUpdate(e.id)} disabled={editSaving} className="bg-blue-600 text-white px-4 py-1.5 rounded text-sm hover:bg-blue-700 disabled:opacity-50">
                             {editSaving ? "Saving…" : "Save changes"}
                           </button>
                           <button onClick={() => setEditingId(null)} className="px-4 py-1.5 border rounded text-sm hover:bg-gray-50">Cancel</button>
                         </div>
-                      </div>
-                    </td>
-                  </tr>
-                ) : (
-                  /* Normal row */
-                  <tr key={e.id} className="hover:bg-gray-50">
-                    <td className="px-6 py-4 text-gray-600 whitespace-nowrap">
-                      {new Date(e.startedAt).toLocaleDateString()} {new Date(e.startedAt).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
-                    </td>
-                    <td className="px-6 py-4 text-gray-700">{e.description || <span className="text-gray-400">—</span>}</td>
-                    <td className="px-6 py-4 font-mono">{e.durationSeconds != null ? formatDuration(e.durationSeconds) : "—"}</td>
-                    <td className="px-6 py-4 text-right space-x-3">
-                      <button onClick={() => startEdit(e)} className="text-blue-600 hover:underline text-sm">Edit</button>
-                      <button onClick={() => handleDelete(e.id)} className="text-red-600 hover:underline text-sm">Delete</button>
-                    </td>
-                  </tr>
-                )
-              ))}
-            </tbody>
-          </table>
-        </div>
+                      </td>
+                    </tr>
+                  ) : (
+                    <tr key={e.id} className="hover:bg-gray-50">
+                      <td className="px-6 py-4 text-gray-600 whitespace-nowrap">
+                        {new Date(e.startedAt).toLocaleDateString()} {new Date(e.startedAt).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
+                      </td>
+                      <td className="px-6 py-4 text-gray-700">{e.description || <span className="text-gray-400">—</span>}</td>
+                      <td className="px-6 py-4 font-mono">{e.durationSeconds != null ? formatDuration(e.durationSeconds) : "—"}</td>
+                      <td className="px-6 py-4 text-right space-x-3">
+                        <button onClick={() => startEdit(e)} className="text-blue-600 hover:underline text-sm">Edit</button>
+                        <button onClick={() => handleDelete(e.id)} className="text-red-600 hover:underline text-sm">Delete</button>
+                      </td>
+                    </tr>
+                  )
+                )}
+              </tbody>
+            </table>
+          </div>
+        </>
       )}
     </div>
   );

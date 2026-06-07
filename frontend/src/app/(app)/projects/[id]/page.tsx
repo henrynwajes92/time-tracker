@@ -27,7 +27,7 @@ export default async function ProjectDetailPage({ params }: { params: Promise<{ 
   const isAdmin = session.user.role === "ADMIN";
 
   return (
-    <div className="p-8">
+    <div className="p-4 sm:p-8">
       <div className="max-w-3xl mx-auto">
         <ProjectDetailClient project={data.project} tasks={data.tasks} isAdmin={isAdmin} accessToken={session.accessToken ?? ""} />
       </div>

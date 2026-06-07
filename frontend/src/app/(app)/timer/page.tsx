@@ -28,9 +28,9 @@ export default async function TimerPage() {
   );
 
   return (
-    <div className="p-8">
+    <div className="p-4 sm:p-8">
       <div className="max-w-xl mx-auto">
-        <h1 className="text-2xl font-semibold mb-8">Timer</h1>
+        <h1 className="text-2xl font-semibold mb-6 sm:mb-8">Timer</h1>
         <TimerWidget projects={projectsWithTasks} initialActive={activeEntry} accessToken={session.accessToken ?? ""} />
       </div>
     </div>

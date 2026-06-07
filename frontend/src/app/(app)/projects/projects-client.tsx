@@ -116,7 +116,7 @@ export default function ProjectsClient({ projects: initial, isAdmin, accessToken
       ) : (
         <div className="grid gap-4">
           {projects.map((p) => (
-            <div key={p.id} className="bg-white rounded-xl border shadow-sm p-5 flex items-center justify-between">
+            <div key={p.id} className="bg-white rounded-xl border shadow-sm p-4 sm:p-5 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
               <div>
                 <Link href={`/projects/${p.id}`} className="font-medium hover:underline">
                   {p.name}

@@ -104,7 +104,7 @@ export default function ReportsClient({ members, projects, isAdmin, currentUserI
     <div className="space-y-6">
       {/* Filters */}
       <form onSubmit={handleRun} className="bg-white rounded-xl border shadow-sm p-6">
-        <div className="grid grid-cols-2 gap-4 md:grid-cols-4">
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 md:grid-cols-4">
           <div>
             <label className="block text-sm font-medium mb-1">From</label>
             <input type="date" value={from} onChange={(e) => setFrom(e.target.value)}
@@ -160,6 +160,7 @@ export default function ReportsClient({ members, projects, isAdmin, currentUserI
             {summary.length === 0 ? (
               <p className="px-6 py-8 text-center text-gray-400 text-sm">No entries found for the selected filters.</p>
             ) : (
+              <div className="overflow-x-auto">
               <table className="w-full text-sm">
                 <thead className="bg-gray-50 border-b">
                   <tr>
@@ -178,6 +179,7 @@ export default function ReportsClient({ members, projects, isAdmin, currentUserI
                   ))}
                 </tbody>
               </table>
+              </div>
             )}
           </div>
 
@@ -187,6 +189,7 @@ export default function ReportsClient({ members, projects, isAdmin, currentUserI
               <div className="px-6 py-4 border-b">
                 <h2 className="font-medium">Detail ({entries.length} entries)</h2>
               </div>
+              <div className="overflow-x-auto">
               <table className="w-full text-sm">
                 <thead className="bg-gray-50 border-b">
                   <tr>
@@ -213,6 +216,7 @@ export default function ReportsClient({ members, projects, isAdmin, currentUserI
                   ))}
                 </tbody>
               </table>
+              </div>
             </div>
           )}
         </>

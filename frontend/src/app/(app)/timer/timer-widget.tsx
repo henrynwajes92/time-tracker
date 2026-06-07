@@ -104,10 +104,10 @@ export default function TimerWidget({ projects, initialActive, accessToken }: Pr
   }
 
   return (
-    <div className="bg-white rounded-2xl border shadow-sm p-8 space-y-6">
+    <div className="bg-white rounded-2xl border shadow-sm p-5 sm:p-8 space-y-6">
       {/* Clock display */}
       <div className="text-center">
-        <div className="text-6xl font-mono font-light tracking-tight text-gray-900">
+        <div className="text-5xl sm:text-6xl font-mono font-light tracking-tight text-gray-900">
           {formatDuration(elapsed)}
         </div>
         {active && (
