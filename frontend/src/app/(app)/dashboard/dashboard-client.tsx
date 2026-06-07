@@ -88,7 +88,6 @@ export default function DashboardClient({ projects, initialEntries, initialActiv
   });
   const [description, setDescription] = useState(initialActive?.description ?? "");
   const [selectedProject, setSelectedProject] = useState(initialActive?.projectId ?? "");
-  const [showProjectMenu, setShowProjectMenu] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
@@ -195,7 +194,6 @@ export default function DashboardClient({ projects, initialEntries, initialActiv
 
   const groups = groupByDay(entries, timezone);
   const weekTotal = groups.reduce((s, g) => s + g.totalSeconds, 0);
-  const selectedProjectName = projects.find((p) => p.id === selectedProject)?.name;
 
   return (
     <div className="flex flex-col min-h-full">
@@ -215,39 +213,20 @@ export default function DashboardClient({ projects, initialEntries, initialActiv
 
             {/* Project selector */}
             {!active ? (
-              <div className="relative shrink-0">
-                <button
-                  onClick={() => setShowProjectMenu((v) => !v)}
-                  className={`flex items-center gap-1 text-xs sm:text-sm px-2 sm:px-3 py-1.5 rounded-full border transition-colors whitespace-nowrap ${
-                    selectedProject
-                      ? "border-blue-500 text-blue-600 bg-blue-50"
-                      : "border-gray-300 text-gray-500 hover:border-blue-400"
-                  }`}
-                >
-                  {selectedProjectName ?? "+ Project"}
-                </button>
-                {showProjectMenu && (
-                  <div className="absolute right-0 top-full mt-1 w-52 bg-white border rounded-lg shadow-lg z-30 py-1 max-h-52 overflow-y-auto">
-                    {projects.map((p) => (
-                      <button
-                        key={p.id}
-                        onClick={() => { setSelectedProject(p.id); setShowProjectMenu(false); }}
-                        className={`w-full text-left px-3 py-2 text-sm hover:bg-gray-50 ${selectedProject === p.id ? "text-blue-600 font-medium" : ""}`}
-                      >
-                        {p.name}
-                      </button>
-                    ))}
-                    {selectedProject && (
-                      <button
-                        onClick={() => { setSelectedProject(""); setShowProjectMenu(false); }}
-                        className="w-full text-left px-3 py-2 text-xs text-gray-400 hover:bg-gray-50 border-t"
-                      >
-                        Clear project
-                      </button>
-                    )}
-                  </div>
-                )}
-              </div>
+              <select
+                value={selectedProject}
+                onChange={(e) => setSelectedProject(e.target.value)}
+                className={`shrink-0 text-xs sm:text-sm px-2 sm:px-3 py-1.5 rounded-full border transition-colors whitespace-nowrap outline-none cursor-pointer ${
+                  selectedProject
+                    ? "border-blue-500 text-blue-600 bg-blue-50"
+                    : "border-gray-300 text-gray-500 hover:border-blue-400 bg-transparent"
+                }`}
+              >
+                <option value="">+ Project</option>
+                {projects.map((p) => (
+                  <option key={p.id} value={p.id}>{p.name}</option>
+                ))}
+              </select>
             ) : (
               <span className="text-xs sm:text-sm px-2 sm:px-3 py-1 rounded-full bg-blue-50 border border-blue-200 text-blue-600 shrink-0 whitespace-nowrap">
                 {active.projectName || "—"}
@@ -282,11 +261,6 @@ export default function DashboardClient({ projects, initialEntries, initialActiv
           {error && <p className="mt-1 text-xs text-red-600">{error}</p>}
         </div>
       </div>
-
-      {/* Close project menu overlay */}
-      {showProjectMenu && (
-        <div className="fixed inset-0 z-20" onClick={() => setShowProjectMenu(false)} />
-      )}
 
       {/* Content */}
       <div className="flex-1 px-4 sm:px-6">
