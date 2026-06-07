@@ -30,6 +30,19 @@ func main() {
 	}
 	defer db.Close()
 
+	// Run schema migrations
+	migrations := []string{
+		`ALTER TABLE time_entries ADD COLUMN IF NOT EXISTS project_id UUID REFERENCES projects(id)`,
+		`UPDATE time_entries te SET project_id = t.project_id FROM tasks t WHERE te.task_id = t.id AND te.project_id IS NULL`,
+		`ALTER TABLE time_entries ALTER COLUMN task_id DROP NOT NULL`,
+	}
+	for _, m := range migrations {
+		if _, err := db.Exec(m); err != nil {
+			log.Fatalf("migration failed: %v", err)
+		}
+	}
+	log.Println("migrations applied")
+
 	// Repositories
 	userRepo := repository.NewUserRepository(db)
 	inviteRepo := repository.NewInviteRepository(db)
